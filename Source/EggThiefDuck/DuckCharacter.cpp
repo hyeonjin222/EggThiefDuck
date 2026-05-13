@@ -7,6 +7,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Public/DuckCombatComponent.h"
 
 ADuckCharacter::ADuckCharacter()
 {
@@ -25,7 +26,10 @@ ADuckCharacter::ADuckCharacter()
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	CameraComp->SetupAttachment(SpringArmComp);
 
-	// 2. 캐릭터 회전 설정
+	// 2. 전투 시스템 설정
+	CombatComp = CreateDefaultSubobject<UDuckCombatComponent>(TEXT("CombatComponent"));
+
+	// 3. 캐릭터 회전 설정
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 	bUseControllerRotationYaw = false;
@@ -65,6 +69,10 @@ void ADuckCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ADuckCharacter::Move);
+		
+		// 사격 바인딩
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ADuckCharacter::StartFire);
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ADuckCharacter::StopFire);
 	}
 }
 
@@ -80,6 +88,22 @@ void ADuckCharacter::Move(const FInputActionValue& Value)
 
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
+	}
+}
+
+void ADuckCharacter::StartFire()
+{
+	if (CombatComp)
+	{
+		CombatComp->StartFire();
+	}
+}
+
+void ADuckCharacter::StopFire()
+{
+	if (CombatComp)
+	{
+		CombatComp->StopFire();
 	}
 }
 

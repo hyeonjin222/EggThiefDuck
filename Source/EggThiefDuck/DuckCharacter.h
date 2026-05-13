@@ -10,6 +10,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class UDuckCombatComponent;
 struct FInputActionValue;
 
 UCLASS()
@@ -30,21 +31,31 @@ public:
 
 private:
 	/** 컴포넌트 */
-	UPROPERTY(VisibleAnywhere, Category = "Camera")
-	USpringArmComponent* SpringArmComp;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USpringArmComponent> SpringArmComp;
 
-	UPROPERTY(VisibleAnywhere, Category = "Camera")
-	UCameraComponent* CameraComp;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UCameraComponent> CameraComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UDuckCombatComponent> CombatComp;
 
 	/** 입력 에셋 */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	UInputMappingContext* DefaultMappingContext;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
-	UPROPERTY(EditAnywhere, Category = "Input")
-	UInputAction* MoveAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> MoveAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> FireAction;
 
 	/** 이동 로직 */
 	void Move(const FInputActionValue& Value);
+
+	/** 사격 로직 */
+	void StartFire();
+	void StopFire();
 
 	/** 마우스 조준 로직 */
 	void LookAtMouseCursor();
