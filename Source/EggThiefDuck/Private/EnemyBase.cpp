@@ -3,6 +3,7 @@
 #include "EnemyBase.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 
@@ -25,11 +26,9 @@ AEnemyBase::AEnemyBase()
 	BoxComp->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
 	BoxComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
 	
-	// 회전 고정 및 저항 설정
 	BoxComp->BodyInstance.bLockXRotation = true;
 	BoxComp->BodyInstance.bLockYRotation = true;
 	
-	// 선형 감쇄(Linear Damping)를 조금 높여 미끄러짐 방지
 	BoxComp->SetLinearDamping(1.5f);
 	BoxComp->SetAngularDamping(1.0f);
 
@@ -38,23 +37,31 @@ AEnemyBase::AEnemyBase()
 	EnemyMesh->SetupAttachment(RootComponent);
 	EnemyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	EnemyMesh->SetAbsolute(false, false, true);
+
+	// 3. 체력바 UI 설정
+	HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
+	HealthBarWidget->SetupAttachment(RootComponent);
+	HealthBarWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f)); // 머리 위
+	HealthBarWidget->SetWidgetSpace(EWidgetSpace::Screen); // 항상 카메라 정면
+	HealthBarWidget->SetDrawAtDesiredSize(true);
 }
 
 void AEnemyBase::BeginPlay()
 {
 	Super::BeginPlay();
+	CurrentHealth = MaxHealth;
 }
 
 void AEnemyBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// --- 1. 속도 제한 (Velocity Clamping) ---
+	// 속도 제한
 	if (BoxComp)
 	{
 		FVector CurrentVelocity = BoxComp->GetPhysicsLinearVelocity();
 		float SpeedSq = CurrentVelocity.SizeSquared();
-		float MaxSpeed = 2000.0f; // 최대 속도 제한 (상황에 맞게 조절 가능)
+		float MaxSpeed = 2000.0f;
 
 		if (SpeedSq > FMath::Square(MaxSpeed))
 		{
@@ -63,7 +70,7 @@ void AEnemyBase::Tick(float DeltaTime)
 		}
 	}
 
-	// --- 2. 호핑 로직 ---
+	// 호핑 로직
 	HopTimer += DeltaTime;
 	if (IsGrounded() && HopTimer >= HopInterval)
 	{
@@ -87,6 +94,26 @@ void AEnemyBase::Tick(float DeltaTime)
 			SetActorRotation(Direction.Rotation());
 		}
 	}
+}
+
+float AEnemyBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	
+	CurrentHealth -= ActualDamage;
+	
+	if (CurrentHealth <= 0.0f)
+	{
+		Die();
+	}
+	
+	return ActualDamage;
+}
+
+void AEnemyBase::Die()
+{
+	// TODO: 아이템 드롭 로직 추가 지점
+	Destroy();
 }
 
 bool AEnemyBase::IsGrounded()
@@ -119,11 +146,8 @@ void AEnemyBase::ApplyKnockback(FVector ImpactImpulse)
 {
 	if (BoxComp)
 	{
-		// --- 3. 넉백 전 속도 상쇄 ---
-		// 현재 속도의 50%를 제거하여 넉백 힘이 무식하게 중첩되는 것을 방지
 		FVector CurrentVel = BoxComp->GetPhysicsLinearVelocity();
 		BoxComp->SetPhysicsLinearVelocity(CurrentVel * 0.5f);
-
 		BoxComp->AddImpulse(ImpactImpulse, NAME_None, true);
 	}
 }

@@ -5,14 +5,15 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "EnemyBase.h"
+#include "Kismet/GameplayStatics.h"
 
 AEggProjectile::AEggProjectile()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// 1. 박스 충돌체 설정 (이름을 BoxComp로 통일)
+	// 1. 박스 충돌체 설정 (루트)
 	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComp"));
-	RootComponent = BoxComp; // 박스를 루트로 설정
+	RootComponent = BoxComp;
 	BoxComp->InitBoxExtent(FVector(15.0f, 15.0f, 15.0f));
 
 	BoxComp->SetCollisionProfileName(TEXT("Custom"));
@@ -69,10 +70,13 @@ void AEggProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor
 		AEnemyBase* Enemy = Cast<AEnemyBase>(OtherActor);
 		if (Enemy)
 		{
+			// 1. 물리적 충격 전달
 			FVector ImpactImpulse = ProjectileMovement->Velocity * 0.4f;
 			ImpactImpulse.Z = 200.0f;
-			
 			Enemy->ApplyKnockback(ImpactImpulse);
+
+			// 2. 데미지 전달 (기본 20 데미지)
+			UGameplayStatics::ApplyDamage(Enemy, 20.0f, nullptr, this, UDamageType::StaticClass());
 		}
 
 		Destroy();
