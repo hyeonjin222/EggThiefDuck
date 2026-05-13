@@ -6,7 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "EggProjectile.generated.h"
 
-class USphereComponent;
+class UBoxComponent;
 class UProjectileMovementComponent;
 class UStaticMeshComponent;
 
@@ -24,24 +24,20 @@ protected:
 public:	
 	virtual void Tick(float DeltaTime) override;
 
-private:
-	/** 충돌 컴포넌트 */
-	UPROPERTY(VisibleAnywhere, Category = "Components")
-	TObjectPtr<USphereComponent> CollisionComp;
+	void FireInDirection(const FVector& ShootDirection);
 
-	/** 메시 컴포넌트 */
-	UPROPERTY(VisibleAnywhere, Category = "Components")
+	/** --- 컴포넌트 (BoxComp로 이름 통일 및 노출) --- */
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile|Collision")
+	TObjectPtr<UBoxComponent> BoxComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile|Visual")
 	TObjectPtr<UStaticMeshComponent> ProjectileMesh;
 
-	/** 발사체 이동 컴포넌트 */
-	UPROPERTY(VisibleAnywhere, Category = "Movement")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile|Movement")
 	TObjectPtr<UProjectileMovementComponent> ProjectileMovement;
 
-	/** 충돌 시 호출될 함수 */
+private:
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
-
-public:
-	/** 발사체 속도 설정 */
-	void FireInDirection(const FVector& ShootDirection);
 };

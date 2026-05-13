@@ -5,21 +5,26 @@
 ---
 
 ## 🎯 현재 목표 (Current Goal)
-- [ ] **적 AI 기초 구현:** `AEnemyBase` 클래스 생성 및 애니메이션 에셋 없는 '통통 튀는(Hopping)' 움직임 로직 구현.
+- [ ] **아이템 및 드롭 시스템 구현:** 적 처치 시 재화 및 회복 달걀 드롭 로직 구현.
 
 ---
 
 ## 🚧 진행 중 / 다음 작업 (To-Do)
-1. `AEnemyBase` 클래스 생성 (기본 적 부모 클래스).
-2. `Squash & Stretch` 기법을 이용한 코드로 구현하는 점프 이동 로직.
-3. 플레이어 추격 (Simple Move to Actor) 로직 연동.
-4. 에디터 작업 필요: `IA_Fire` 생성 및 `BP_DuckCharacter`에 사격 관련 에셋 할당.
+1. `ADropItemBase` 클래스 및 상속 클래스(Gold, Ammo) 생성.
+2. `AEnemyBase`에 사망 로직 및 아이템 스폰 확률 연동.
+3. 플레이어 아이템 획득 범위(Overlap) 및 효과 적용.
 
 ---
 
 ## ✅ 완료된 기록 (History Log)
 
 ### 2026-05-13 (현재)
+- **적 AI 및 물리 상호작용 구현:**
+  - `AEnemyBase` 클래스 구현: 코드로 구현한 `Squash & Stretch` 방식의 통통 튀는(Hopping) 움직임.
+  - AI 추격 로직: `SimpleMoveToActor`를 이용한 주기적 플레이어 추적.
+  - 물리 상호작용 강화: 몬스터-플레이어-몬스터 간 충돌 및 밀기 기능, 달걀 피격 시 넉백(Knockback) 시스템 적용.
+  - `AEggProjectile` 업데이트: 충돌 시 물리적 임펄스 전달 및 도탄/중력 설정 추가.
+  - `EggThiefDuck.Build.cs`: AI 및 Navigation 모듈 의존성 추가.
 - **전투 시스템 기초 구현:**
   - `AEggProjectile` 클래스 구현: 발사체 이동 및 충돌 로직.
   - `UDuckCombatComponent` 클래스 구현: 달걀 게이지(탄창), 자동 회복, 과열(Overheat) 로직.

@@ -1,41 +1,49 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "EggProjectile.h"
-#include "Components/SphereComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "EnemyBase.h"
 
 AEggProjectile::AEggProjectile()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// 1. 충돌체 설정
-	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
-	CollisionComp->InitSphereRadius(15.0f);
-	CollisionComp->BodyInstance.SetCollisionProfileName("Projectile");
-	CollisionComp->OnComponentHit.AddDynamic(this, &AEggProjectile::OnHit);
+	// 1. 박스 충돌체 설정 (이름을 BoxComp로 통일)
+	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComp"));
+	RootComponent = BoxComp; // 박스를 루트로 설정
+	BoxComp->InitBoxExtent(FVector(15.0f, 15.0f, 15.0f));
 
-	// 플레이어가 자신의 발사체에 걸려 넘어지지 않도록 설정
-	CollisionComp->SetWalkableSlopeOverride(FWalkableSlopeOverride(WalkableSlope_Unwalkable, 0.f));
-	CollisionComp->CanCharacterStepUpOn = ECB_No;
+	BoxComp->SetCollisionProfileName(TEXT("Custom"));
+	BoxComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	BoxComp->SetCollisionObjectType(ECC_WorldDynamic);
+	BoxComp->BodyInstance.bUseCCD = true;
 
-	RootComponent = CollisionComp;
+	BoxComp->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BoxComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	BoxComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+	BoxComp->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
+
+	BoxComp->SetNotifyRigidBodyCollision(true);
+	BoxComp->OnComponentHit.AddDynamic(this, &AEggProjectile::OnHit);
 
 	// 2. 메시 설정
 	ProjectileMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
 	ProjectileMesh->SetupAttachment(RootComponent);
-	ProjectileMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); // 충돌은 Sphere가 담당
+	ProjectileMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ProjectileMesh->SetAbsolute(false, false, true);
 
 	// 3. 발사체 이동 설정
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
-	ProjectileMovement->UpdatedComponent = CollisionComp;
-	ProjectileMovement->InitialSpeed = 3000.f;
-	ProjectileMovement->MaxSpeed = 3000.f;
+	ProjectileMovement->UpdatedComponent = BoxComp;
+	ProjectileMovement->InitialSpeed = 3500.f;
+	ProjectileMovement->MaxSpeed = 3500.f;
 	ProjectileMovement->bRotationFollowsVelocity = true;
-	ProjectileMovement->bShouldBounce = false;
-	ProjectileMovement->ProjectileGravityScale = 0.f; // 중력 영향 없음 (레이저처럼 직진)
+	ProjectileMovement->bShouldBounce = true;
+	ProjectileMovement->Bounciness = 0.2f;
+	ProjectileMovement->ProjectileGravityScale = 0.1f;
 
-	// 수명 설정 (3초 뒤 자동 파괴)
 	InitialLifeSpan = 3.0f;
 }
 
@@ -58,9 +66,15 @@ void AEggProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor
 {
 	if ((OtherActor != nullptr) && (OtherActor != this) && (OtherComp != nullptr))
 	{
-		// TODO: 적에게 데미지 입히는 로직 추가 예정
-		
-		// 충돌 시 파괴
+		AEnemyBase* Enemy = Cast<AEnemyBase>(OtherActor);
+		if (Enemy)
+		{
+			FVector ImpactImpulse = ProjectileMovement->Velocity * 0.4f;
+			ImpactImpulse.Z = 200.0f;
+			
+			Enemy->ApplyKnockback(ImpactImpulse);
+		}
+
 		Destroy();
 	}
 }
