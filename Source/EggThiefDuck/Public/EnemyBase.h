@@ -61,6 +61,14 @@ protected:
 	/** 사망 처리 */
 	void Die();
 
+	/** 데미지 숫자 스폰 함수 (BP에서 오버라이드 가능) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Enemy|UI")
+	void SpawnDamageText(float DamageAmount);
+
+	/** 데미지 숫자 액터 클래스 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|UI")
+	TSubclassOf<class ADamageTextActor> DamageTextClass;
+
 	/** 스탯 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Stats")
 	float MaxHealth = 100.0f;

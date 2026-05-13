@@ -6,6 +6,7 @@
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "Public/DamageTextActor.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -101,6 +102,9 @@ float AEnemyBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	
 	CurrentHealth -= ActualDamage;
+
+	// 데미지 숫자 스폰 이벤트 호출
+	SpawnDamageText(ActualDamage);
 	
 	if (CurrentHealth <= 0.0f)
 	{
@@ -112,7 +116,6 @@ float AEnemyBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent
 
 void AEnemyBase::Die()
 {
-	// TODO: 아이템 드롭 로직 추가 지점
 	Destroy();
 }
 

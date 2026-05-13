@@ -19,12 +19,21 @@
 ## ✅ 완료된 기록 (History Log)
 
 ### 2026-05-13 (현재)
-- **적 AI 및 물리 상호작용 구현:**
-  - `AEnemyBase` 클래스 구현: 코드로 구현한 `Squash & Stretch` 방식의 통통 튀는(Hopping) 움직임.
-  - AI 추격 로직: `SimpleMoveToActor`를 이용한 주기적 플레이어 추적.
-  - 물리 상호작용 강화: 몬스터-플레이어-몬스터 간 충돌 및 밀기 기능, 달걀 피격 시 넉백(Knockback) 시스템 적용.
-  - `AEggProjectile` 업데이트: 충돌 시 물리적 임펄스 전달 및 도탄/중력 설정 추가.
-  - `EggThiefDuck.Build.cs`: AI 및 Navigation 모듈 의존성 추가.
+- **데미지 및 UI 시스템 구현:**
+  - `AEnemyBase` 체력 시스템: `TakeDamage` 오버라이드 및 `CurrentHealth/MaxHealth` 관리.
+  - `Die()` 로직 구현: 체력 0 이하 시 액터 파괴 및 아이템 드롭 준비.
+  - `HealthBarWidget`: 머리 위 `WidgetComponent` 추가 및 카메라를 향하는 Screen Space UI 설정.
+  - `AEggProjectile` 데미지 연동: 명중 시 물리적 넉백과 함께 실제 데미지(20.0) 전달.
+- **물리 기반 적 AI 및 상호작용 고도화:**
+  - `APawn` 기반 물리 폰 리팩토링: `ACharacter`에서 전환하여 `Simulate Physics` 루트 이동 구현.
+  - `BoxComponent` 도입: 캡슐 대신 박스를 루트로 사용하여 단단한 물리 상호작용 및 겹침 방지.
+  - **연속 충돌 감지(CCD):** 발사체와 몬스터에 CCD를 활성화하여 고속 관통 현상 해결.
+  - **지면 감지(Grounded Check):** LineTrace를 통해 바닥에 닿았을 때만 점프하도록 개선(공중 부유 해결).
+  - **물리 안정화:** 넉백 시 기존 속도 상쇄 및 최대 속도 제한(Clamping) 적용.
+  - **독립적 스케일 설정:** `SetAbsolute(Scale=true)`를 통해 메시 크기 변화 없이 충돌 영역만 조절 가능하도록 구현.
+- **적 AI 기초 구현:**
+  - `AEnemyBase` 클래스 생성 및 AI 추격 로직 구현.
+  - `EggThiefDuck.Build.cs`: `AIModule`, `NavigationSystem`, `UMG` 모듈 의존성 추가.
 - **전투 시스템 기초 구현:**
   - `AEggProjectile` 클래스 구현: 발사체 이동 및 충돌 로직.
   - `UDuckCombatComponent` 클래스 구현: 달걀 게이지(탄창), 자동 회복, 과열(Overheat) 로직.
