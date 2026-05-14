@@ -26,6 +26,10 @@ public:
 	void StartFire();
 	void StopFire();
 
+	/** 달걀 게이지 즉시 회복 (아이템용) */
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void RefillGauge(float Amount);
+
 private:
 	/** 실제 발사 로직 */
 	void Fire();

@@ -131,3 +131,8 @@ void ADuckCharacter::LookAtMouseCursor()
 		}
 	}
 }
+
+void ADuckCharacter::AddGold(int32 Amount)
+{
+	Gold += Amount;
+}

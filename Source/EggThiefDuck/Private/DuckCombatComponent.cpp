@@ -90,6 +90,18 @@ void UDuckCombatComponent::UpdateEggGauge(float DeltaTime)
 	}
 }
 
+void UDuckCombatComponent::RefillGauge(float Amount)
+{
+	CurrentEggGauge = FMath::Min(MaxEggGauge, CurrentEggGauge + Amount);
+	
+	// 과열 상태 해제 (아이템 획득 시 즉시 사용 가능하게)
+	if (bIsOverheated)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(OverheatTimerHandle);
+		EndOverheat();
+	}
+}
+
 void UDuckCombatComponent::EndOverheat()
 {
 	bIsOverheated = false;

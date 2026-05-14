@@ -91,6 +91,7 @@ void ADropItemBase::InitVelocity(FVector LaunchVelocity)
 {
 	if (BoxComp)
 	{
+		BoxComp->SetSimulatePhysics(true);
 		BoxComp->AddImpulse(LaunchVelocity, NAME_None, true);
 	}
 }
@@ -102,6 +103,11 @@ void ADropItemBase::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* 
 		OnPickedUp(OtherActor);
 		Destroy();
 	}
+}
+
+void ADropItemBase::OnPickedUp_Implementation(AActor* Deliverer)
+{
+	// 기본 클래스에서는 아무것도 하지 않음. 하위 클래스에서 오버라이드.
 }
 
 void ADropItemBase::OnMagnetOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)

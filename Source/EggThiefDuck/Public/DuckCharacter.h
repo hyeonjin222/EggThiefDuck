@@ -63,4 +63,20 @@ private:
 	/** 캐릭터 이동 속도 */
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float MoveSpeed = 600.f;
+
+	/** 재화 (Gold) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
+	int32 Gold = 0;
+
+public:
+	/** 골드 추가 함수 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddGold(int32 Amount);
+
+	/** 골드 양 반환 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	int32 GetGold() const { return Gold; }
+
+	/** 전투 컴포넌트 Getter */
+	UDuckCombatComponent* GetCombatComponent() const { return CombatComp; }
 };

@@ -78,12 +78,15 @@ void AEnemyBase::Tick(float DeltaTime)
 		}
 	}
 
-	// 호핑 로직
-	HopTimer += DeltaTime;
-	if (IsGrounded() && HopTimer >= HopInterval)
+	// 호핑 로직 (도망 일시정지 중이면 뛰지 않음)
+	if (!bIsFleeingPaused)
 	{
-		PhysicalHop();
-		HopTimer = 0.0f;
+		HopTimer += DeltaTime;
+		if (IsGrounded() && HopTimer >= HopInterval)
+		{
+			PhysicalHop();
+			HopTimer = 0.0f;
+		}
 	}
 
 	// 시각 효과 (Squash & Stretch) - 부드러운 보간 적용
@@ -106,15 +109,32 @@ void AEnemyBase::Tick(float DeltaTime)
 		BaseMeshScale.Z * SmoothedStretch
 	));
 
-	// 플레이어 조준
+	// --- 회전 조절 로직 (더 부드럽고 안정적으로) ---
 	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
 	if (PlayerPawn)
 	{
-		FVector Direction = PlayerPawn->GetActorLocation() - GetActorLocation();
-		Direction.Z = 0.0f;
-		if (!Direction.IsNearlyZero())
+		FVector TargetDirection;
+		
+		if (CurrentState == EEnemyState::Chasing || bIsFleeingPaused)
 		{
-			SetActorRotation(Direction.Rotation());
+			// 추격 중이거나 도망 대기 중일 때는 플레이어를 바라봄
+			TargetDirection = PlayerPawn->GetActorLocation() - GetActorLocation();
+		}
+		else
+		{
+			// 도망 중일 때는 '플레이어의 반대 방향'을 명확히 고정해서 바라봄 (물리 속도 대신 계산된 방향 사용)
+			TargetDirection = GetActorLocation() - PlayerPawn->GetActorLocation();
+		}
+
+		TargetDirection.Z = 0.0f;
+		if (!TargetDirection.IsNearlyZero())
+		{
+			FRotator TargetRotation = TargetDirection.Rotation();
+			FRotator CurrentRotation = GetActorRotation();
+			
+			// RInterpTo를 사용해 부드럽게 회전 (지터 방지)
+			FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 10.0f);
+			SetActorRotation(NewRotation);
 		}
 	}
 }
@@ -188,11 +208,43 @@ void AEnemyBase::PhysicalHop()
 	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
 	if (!PlayerPawn || !BoxComp) return;
 
-	FVector ForwardDir = (PlayerPawn->GetActorLocation() - GetActorLocation()).GetSafeNormal();
-	ForwardDir.Z = 0.0f;
+	FVector MoveDir;
+	if (CurrentState == EEnemyState::Chasing)
+	{
+		// 플레이어 방향으로
+		MoveDir = (PlayerPawn->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+	}
+	else
+	{
+		// 플레이어 반대 방향으로 (도망)
+		MoveDir = (GetActorLocation() - PlayerPawn->GetActorLocation()).GetSafeNormal();
+	}
+	
+	MoveDir.Z = 0.0f;
 
-	FVector Impulse = (FVector::UpVector * JumpImpulse) + (ForwardDir * ForwardImpulse);
+	FVector Impulse = (FVector::UpVector * JumpImpulse) + (MoveDir * ForwardImpulse);
 	BoxComp->AddImpulse(Impulse, NAME_None, true);
+}
+
+void AEnemyBase::SetState(EEnemyState NewState)
+{
+	if (CurrentState == NewState) return;
+	CurrentState = NewState;
+	
+	if (CurrentState == EEnemyState::Fleeing)
+	{
+		// 1. 체력바 숨기기
+		if (HealthBarWidget) HealthBarWidget->SetVisibility(false);
+
+		// 2. 도망 전 4초간 정지 및 대기 (플레이어를 쳐다봄)
+		bIsFleeingPaused = true;
+		GetWorld()->GetTimerManager().SetTimer(FleeDelayTimerHandle, this, &AEnemyBase::ResumeFleeing, 4.0f, false);
+	}
+}
+
+void AEnemyBase::ResumeFleeing()
+{
+	bIsFleeingPaused = false;
 }
 
 void AEnemyBase::ApplyKnockback(FVector ImpactImpulse)

@@ -33,9 +33,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
 	TObjectPtr<UStaticMeshComponent> ItemMesh;
 
-	/** 아이템 획득 시 호출 (BP에서 구현) */
-	UFUNCTION(BlueprintImplementableEvent, Category = "Item")
+	/** 아이템 획득 시 호출 (C++ 및 BP 모두 오버라이드 가능) */
+	UFUNCTION(BlueprintNativeEvent, Category = "Item")
 	void OnPickedUp(AActor* Deliverer);
+	virtual void OnPickedUp_Implementation(AActor* Deliverer);
 
 	UFUNCTION()
 	virtual void OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);

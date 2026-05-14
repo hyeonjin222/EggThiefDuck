@@ -37,6 +37,14 @@ struct FItemDropRecord
 	float MaxUpwardForce = 600.0f;
 };
 
+/** 적 상태 정의 */
+UENUM(BlueprintType)
+enum class EEnemyState : uint8
+{
+	Chasing,
+	Fleeing
+};
+
 UCLASS()
 class EGGTHIEFDUCK_API AEnemyBase : public APawn
 {
@@ -57,7 +65,21 @@ public:
 	/** 데미지 처리 함수 (언리얼 표준 API) */
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
+	/** 도망 상태로 전환 */
+	UFUNCTION(BlueprintCallable, Category = "Enemy|AI")
+	void SetState(EEnemyState NewState);
+
 protected:
+	/** 현재 상태 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
+	EEnemyState CurrentState = EEnemyState::Chasing;
+
+	/** 도망 전 대기 타이머 */
+	bool bIsFleeingPaused = false;
+	FTimerHandle FleeDelayTimerHandle;
+
+	void ResumeFleeing();
+
 	/** 박스 형태의 물리 루트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Collision")
 	TObjectPtr<UBoxComponent> BoxComp;
