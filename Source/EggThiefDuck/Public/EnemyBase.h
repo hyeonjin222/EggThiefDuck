@@ -9,6 +9,34 @@
 class UBoxComponent;
 class UWidgetComponent;
 
+/** --- 아이템 드롭 시스템 구조체 --- */
+USTRUCT(BlueprintType)
+struct FItemDropRecord
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<class ADropItemBase> ItemClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 DropCount = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, UIMax = 1))
+	float DropChance = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	float MinLaunchStrength = 200.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	float MaxLaunchStrength = 500.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	float MinUpwardForce = 400.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	float MaxUpwardForce = 600.0f;
+};
+
 UCLASS()
 class EGGTHIEFDUCK_API AEnemyBase : public APawn
 {
@@ -63,6 +91,10 @@ protected:
 
 	/** 사망 처리 */
 	void Die();
+
+	/** --- 아이템 드롭 테이블 --- */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Drop")
+	TArray<FItemDropRecord> DropTable;
 
 	/** 데미지 숫자 스폰 함수 (BP에서 오버라이드 가능) */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Enemy|UI")

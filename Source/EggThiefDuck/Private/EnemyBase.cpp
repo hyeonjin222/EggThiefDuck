@@ -7,6 +7,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "DamageTextActor.h"
+#include "DropItemBase.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -137,6 +138,34 @@ float AEnemyBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent
 
 void AEnemyBase::Die()
 {
+	// 드롭 테이블에 정의된 모든 아이템 처리
+	for (const FItemDropRecord& DropRecord : DropTable)
+	{
+		if (DropRecord.ItemClass && FMath::FRand() <= DropRecord.DropChance)
+		{
+			for (int32 i = 0; i < DropRecord.DropCount; i++)
+			{
+				// 소환 위치에 약간의 랜덤 오프셋 추가 (겹침 방지)
+				FVector RandomOffset = FVector(FMath::RandRange(-20.f, 20.f), FMath::RandRange(-20.f, 20.f), FMath::RandRange(0.f, 20.f));
+				FVector SpawnLoc = GetActorLocation() + FVector(0, 0, 30.f) + RandomOffset;
+				
+				ADropItemBase* Item = GetWorld()->SpawnActor<ADropItemBase>(DropRecord.ItemClass, SpawnLoc, FRotator::ZeroRotator);
+				if (Item)
+				{
+					// 수평 방향 랜덤 벡터
+					FVector LaunchDir = FVector(FMath::RandRange(-1.f, 1.f), FMath::RandRange(-1.f, 1.f), 0.f).GetSafeNormal();
+					float HorizontalStrength = FMath::RandRange(DropRecord.MinLaunchStrength, DropRecord.MaxLaunchStrength);
+					
+					// 수직 방향 힘 개별 계산
+					float UpwardForce = FMath::RandRange(DropRecord.MinUpwardForce, DropRecord.MaxUpwardForce);
+					
+					FVector FinalImpulse = (LaunchDir * HorizontalStrength) + (FVector::UpVector * UpwardForce);
+					Item->InitVelocity(FinalImpulse);
+				}
+			}
+		}
+	}
+
 	Destroy();
 }
 
