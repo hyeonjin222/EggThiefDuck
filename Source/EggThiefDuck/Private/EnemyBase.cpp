@@ -6,7 +6,7 @@
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
-#include "Public/DamageTextActor.h"
+#include "DamageTextActor.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -51,6 +51,12 @@ void AEnemyBase::BeginPlay()
 {
 	Super::BeginPlay();
 	CurrentHealth = MaxHealth;
+
+	// 초기 스케일 저장
+	if (EnemyMesh)
+	{
+		BaseMeshScale = EnemyMesh->GetRelativeScale3D();
+	}
 }
 
 void AEnemyBase::Tick(float DeltaTime)
@@ -79,10 +85,25 @@ void AEnemyBase::Tick(float DeltaTime)
 		HopTimer = 0.0f;
 	}
 
-	// 시각 효과
+	// 시각 효과 (Squash & Stretch) - 부드러운 보간 적용
 	float VelocityZ = GetVelocity().Z;
-	float Stretch = 1.0f + (FMath::Clamp(VelocityZ, -1000.f, 1000.f) * 0.0005f);
-	EnemyMesh->SetRelativeScale3D(FVector(1.0f / FMath::Sqrt(Stretch), 1.0f / FMath::Sqrt(Stretch), Stretch));
+	
+	// 아주 작은 속도는 무시 (정지 상태 떨림 방지)
+	if (FMath::Abs(VelocityZ) < 10.0f) VelocityZ = 0.0f;
+
+	float TargetStretch = 1.0f + (FMath::Clamp(VelocityZ, -1000.f, 1000.f) * 0.0005f);
+	
+	// 현재 스케일에서 목표 스케일로 부드럽게 이동 (Interp)
+	FVector CurrentScale = EnemyMesh->GetRelativeScale3D();
+	float CurrentStretch = CurrentScale.Z / BaseMeshScale.Z; // 현재의 늘어남 정도 역계산
+	float SmoothedStretch = FMath::FInterpTo(CurrentStretch, TargetStretch, DeltaTime, 15.0f);
+
+	// 기본 스케일에 늘어남 정도를 곱해줌
+	EnemyMesh->SetRelativeScale3D(FVector(
+		BaseMeshScale.X / FMath::Sqrt(SmoothedStretch), 
+		BaseMeshScale.Y / FMath::Sqrt(SmoothedStretch), 
+		BaseMeshScale.Z * SmoothedStretch
+	));
 
 	// 플레이어 조준
 	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);

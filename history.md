@@ -18,7 +18,9 @@
 
 ## ✅ 완료된 기록 (History Log)
 
-### 2026-05-13 (현재)
+### 2026-05-14 (현재)
+- **빌드 오류 수정:**
+  - `EnemyBase.cpp` 및 `DuckCharacter.cpp`에서 `Public/` 접두사가 포함된 잘못된 헤더 포함 경로 수정 (`C1083` 오류 해결).
 - **데미지 및 UI 시스템 구현:**
   - `AEnemyBase` 체력 시스템: `TakeDamage` 오버라이드 및 `CurrentHealth/MaxHealth` 관리.
   - `Die()` 로직 구현: 체력 0 이하 시 액터 파괴 및 아이템 드롭 준비.

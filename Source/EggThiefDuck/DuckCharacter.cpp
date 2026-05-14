@@ -7,7 +7,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Public/DuckCombatComponent.h"
+#include "DuckCombatComponent.h"
 
 ADuckCharacter::ADuckCharacter()
 {

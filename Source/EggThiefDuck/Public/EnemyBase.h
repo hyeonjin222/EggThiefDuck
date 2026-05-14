@@ -55,6 +55,9 @@ protected:
 
 	float HopTimer = 0.0f;
 
+	/** 에디터에서 설정한 초기 메시 스케일 저장용 */
+	FVector BaseMeshScale;
+
 	bool IsGrounded();
 	void PhysicalHop();
 
