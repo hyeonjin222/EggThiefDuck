@@ -23,6 +23,12 @@ ADuckCharacter::ADuckCharacter()
 	SpringArmComp->bInheritRoll = false;
 	SpringArmComp->bInheritYaw = false;
 
+	// 카메라 래그 (Camera Lag) 설정: 부드럽게 따라오게 함
+	SpringArmComp->bEnableCameraLag = true;
+	SpringArmComp->bEnableCameraRotationLag = true;
+	SpringArmComp->CameraLagSpeed = 5.0f;         // 이동 지연 속도 (낮을수록 더 부드럽고 느림)
+	SpringArmComp->CameraRotationLagSpeed = 5.0f; // 회전 지연 속도
+
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	CameraComp->SetupAttachment(SpringArmComp);
 
