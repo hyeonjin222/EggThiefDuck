@@ -34,13 +34,20 @@ public:
 	void RefillGauge(float Amount);
 
 private:
-	/** 실제 발사 로직 */
+	/** 발사 시도 (애니메이션 및 타이머 시작) */
 	void Fire();
+
+	/** 실제 발사체 생성 (타이머 호출용) */
+	void FireProjectile();
 
 	/** 달걀 게이지 업데이트 */
 	void UpdateEggGauge(float DeltaTime);
 
 private:
+	/** 발사 지연 시간 (공격 애니메이션 싱크용) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	float FireDelay = 0.1f;
+
 	/** 발사체 클래스 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AEggProjectile> ProjectileClass;

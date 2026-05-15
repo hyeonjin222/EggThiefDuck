@@ -64,15 +64,49 @@ void UDuckCombatComponent::Fire()
 	}
 
 	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
-	if (OwnerCharacter && ProjectileClass)
+	if (OwnerCharacter && OwnerCharacter->GetAttackMontage())
 	{
-		// 캐릭터가 조준 방향과 충분히 정렬되었는지 확인
+		// 1. 조준 확인
 		if (!OwnerCharacter->IsAlignedWithCursor())
 		{
-			// 정렬되지 않았다면 이번 사격은 스킵
 			return;
 		}
 
+		// 2. 애니메이션 재생 속도 계산
+		// FireRate(연사 간격) 안에 애니메이션이 딱 맞춰 끝나도록 PlayRate 결정
+		float MontageLength = OwnerCharacter->GetAttackMontage()->GetPlayLength();
+		float PlayRate = MontageLength / FireRate;
+
+		// 3. 공격 애니메이션 재생 (계산된 배율 적용)
+		if (OwnerCharacter->GetMesh() && OwnerCharacter->GetMesh()->GetAnimInstance())
+		{
+			OwnerCharacter->PlayAttackMontage(); 
+			
+			UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+			if (AnimInst)
+			{
+				AnimInst->Montage_SetPlayRate(OwnerCharacter->GetAttackMontage(), PlayRate);
+			}
+		}
+
+		// 4. 지연 발사 타이머 설정
+		// 사용자 요청: 애니메이션 진행률 50% 시점에 발사
+		// 애니메이션이 FireRate 시간에 맞춰 재생되므로, 그 절반인 FireRate * 0.5초 후에 발사합니다.
+		float ScaledFireDelay = FireRate * 0.5f;
+		
+		FTimerHandle FireTimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(FireTimerHandle, this, &UDuckCombatComponent::FireProjectile, ScaledFireDelay, false);
+		
+		// 쿨타임 계산용 시간 기록
+		LastFireTime = GetWorld()->GetTimeSeconds();
+	}
+}
+
+void UDuckCombatComponent::FireProjectile()
+{
+	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
+	if (OwnerCharacter && ProjectileClass)
+	{
 		FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorForwardVector() * 100.f;
 		FRotator SpawnRotation = OwnerCharacter->GetActorRotation();
 
@@ -85,13 +119,10 @@ void UDuckCombatComponent::Fire()
 		{
 			Projectile->FireInDirection(OwnerCharacter->GetActorForwardVector());
 			
-			// 게이지 소모 및 시간 기록
+			// 게이지 소모
 			CurrentEggGauge -= GaugeCostPerShot;
-			LastFireTime = GetWorld()->GetTimeSeconds();
 
-			// [버그 해결 핵심] 한 발이라도 나갔다면 클릭에 의한 '최소 보장 의사'는 즉시 소모합니다.
-			// 이제 마우스를 계속 누르고 있다면 bIsFiring에 의해 연사가 유지되고, 
-			// 마우스를 뗐다면 여기서 bWantsToFire가 꺼지므로 정확히 한 발만 쏘고 멈춥니다.
+			// 클릭 보장 의사 소모
 			bWantsToFire = false;
 		}
 	}

@@ -36,6 +36,11 @@ public:
 	/** 조준 정렬 확인 (사격 가능 여부) */
 	bool IsAlignedWithCursor() const;
 
+	/** 애니메이션 몽타주 재생 함수들 */
+	void PlayHitReactMontage();
+	void PlayDeathMontage();
+	void PlayAttackMontage();
+
 private:
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -95,6 +100,17 @@ private:
 	/** UI 동기화 함수 */
 	void RefreshHUD();
 
+protected:
+	/** 애니메이션 에셋들 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> AttackMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> HitReactMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> DeathMontage;
+
 public:
 	/** 골드 추가 함수 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
@@ -107,6 +123,9 @@ public:
 	/** 현재 체력 비율 반환 (0.0 ~ 1.0) */
 	UFUNCTION(BlueprintPure, Category = "Stats")
 	float GetHealthPercent() const { return CurrentHealth / MaxHealth; }
+
+	/** 애니메이션 에셋 Getter */
+	UAnimMontage* GetAttackMontage() const { return AttackMontage; }
 
 	/** 전투 컴포넌트 Getter */
 	UDuckCombatComponent* GetCombatComponent() const { return CombatComp; }

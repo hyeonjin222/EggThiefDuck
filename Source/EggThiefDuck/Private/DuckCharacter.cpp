@@ -122,6 +122,11 @@ float ADuckCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 	{
 		Die();
 	}
+	else
+	{
+		// 살아있다면 피격 애니메이션 재생
+		PlayHitReactMontage();
+	}
 
 	return ActualDamage;
 }
@@ -213,11 +218,37 @@ bool ADuckCharacter::IsAlignedWithCursor() const
 
 void ADuckCharacter::Die()
 {
-	// TODO: 게임 오버 처리 또는 리스폰 로직
+	// 사망 애니메이션 재생
+	PlayDeathMontage();
+
 	UE_LOG(LogTemp, Warning, TEXT("Player is DEAD!"));
 	
-	// 임시로 레벨 재시작
-	UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()));
+	// TODO: 사망 연출 후 레벨 재시작 (타이머 등 활용 권장)
+	// UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()));
+}
+
+void ADuckCharacter::PlayHitReactMontage()
+{
+	if (HitReactMontage)
+	{
+		PlayAnimMontage(HitReactMontage);
+	}
+}
+
+void ADuckCharacter::PlayDeathMontage()
+{
+	if (DeathMontage)
+	{
+		PlayAnimMontage(DeathMontage);
+	}
+}
+
+void ADuckCharacter::PlayAttackMontage()
+{
+	if (AttackMontage)
+	{
+		PlayAnimMontage(AttackMontage);
+	}
 }
 
 void ADuckCharacter::RefreshHUD()
