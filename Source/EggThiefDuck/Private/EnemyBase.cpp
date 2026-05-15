@@ -170,7 +170,7 @@ void AEnemyBase::Die()
 				FVector SpawnLoc = GetActorLocation() + FVector(0, 0, 30.f) + RandomOffset;
 				
 				ADropItemBase* Item = GetWorld()->SpawnActor<ADropItemBase>(DropRecord.ItemClass, SpawnLoc, FRotator::ZeroRotator);
-				if (Item)
+				if (IsValid(Item))
 				{
 					// 수평 방향 랜덤 벡터
 					FVector LaunchDir = FVector(FMath::RandRange(-1.f, 1.f), FMath::RandRange(-1.f, 1.f), 0.f).GetSafeNormal();

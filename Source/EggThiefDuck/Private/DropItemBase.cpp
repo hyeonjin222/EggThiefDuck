@@ -89,9 +89,17 @@ void ADropItemBase::Tick(float DeltaTime)
 
 void ADropItemBase::InitVelocity(FVector LaunchVelocity)
 {
-	if (BoxComp)
+	if (BoxComp && IsValid(this))
 	{
-		BoxComp->SetSimulatePhysics(true);
+		// 1. 콜리전 설정을 물리 가능 상태로 강제 전환 (자석 범위 때문에 QueryOnly로 바뀌었을 가능성 대비)
+		BoxComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+		// 2. 생성 직후 물리 상태가 아직 준비되지 않았을 수 있으므로 명시적으로 다시 켭니다.
+		if (!BoxComp->IsSimulatingPhysics())
+		{
+			BoxComp->SetSimulatePhysics(true);
+		}
+		
 		BoxComp->AddImpulse(LaunchVelocity, NAME_None, true);
 	}
 }

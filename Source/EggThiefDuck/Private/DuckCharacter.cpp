@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "DuckCharacter.h"
+#include "DuckPlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
@@ -8,6 +9,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "DuckCombatComponent.h"
+#include "Components/WidgetComponent.h"
+#include "UI/HealthBarWidget.h"
 
 ADuckCharacter::ADuckCharacter()
 {
@@ -35,13 +38,22 @@ ADuckCharacter::ADuckCharacter()
 	// 2. 전투 시스템 설정
 	CombatComp = CreateDefaultSubobject<UDuckCombatComponent>(TEXT("CombatComponent"));
 
-	// 3. 캐릭터 회전 설정
+	// 3. 체력바 UI 설정
+	HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
+	HealthBarWidget->SetupAttachment(RootComponent);
+	HealthBarWidget->SetRelativeLocation(FVector(0.f, 0.f, 120.f)); // 캐릭터 머리 위
+	HealthBarWidget->SetWidgetSpace(EWidgetSpace::Screen);          // 화면 공간 UI
+
+	// 4. 캐릭터 회전 설정
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 	bUseControllerRotationYaw = false;
 
 	GetCharacterMovement()->bOrientRotationToMovement = false; // 이동 방향으로 자동 회전 끔 (조준을 위해)
 	GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+
+	// 초기 체력 설정
+	CurrentHealth = MaxHealth;
 }
 
 void ADuckCharacter::BeginPlay()
@@ -59,13 +71,29 @@ void ADuckCharacter::BeginPlay()
 		// 마우스 커서 표시 및 감춤 설정
 		PlayerController->bShowMouseCursor = true;
 	}
+
+	RefreshHUD();
 }
 
 void ADuckCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	LookAtMouseCursor();
+	// 1. 조건부 회전 로직 (사격 중이거나 사격 후 1.0초 동안 유지)
+	bool bShouldLookAtMouse = (CombatComp && CombatComp->IsFiring()) || 
+	                          (GetWorld()->GetTimeSeconds() - LastFireTime < 1.0f);
+
+	if (bShouldLookAtMouse)
+	{
+		// 마우스 방향으로 부드럽고 빠르게 조준
+		GetCharacterMovement()->bOrientRotationToMovement = false;
+		LookAtMouseCursor();
+	}
+	else
+	{
+		// 평소: 이동 방향 바라보기
+		GetCharacterMovement()->bOrientRotationToMovement = true;
+	}
 }
 
 void ADuckCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -80,6 +108,22 @@ void ADuckCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ADuckCharacter::StartFire);
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ADuckCharacter::StopFire);
 	}
+}
+
+float ADuckCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.f, MaxHealth);
+	
+	RefreshHUD();
+
+	if (CurrentHealth <= 0.f)
+	{
+		Die();
+	}
+
+	return ActualDamage;
 }
 
 void ADuckCharacter::Move(const FInputActionValue& Value)
@@ -102,6 +146,8 @@ void ADuckCharacter::StartFire()
 	if (CombatComp)
 	{
 		CombatComp->StartFire();
+		// 사격 시작 시 타이머 초기화 (조준 유지 시작)
+		LastFireTime = GetWorld()->GetTimeSeconds();
 	}
 }
 
@@ -119,15 +165,77 @@ void ADuckCharacter::LookAtMouseCursor()
 	if (PC)
 	{
 		FHitResult TraceHitResult;
-		// 마우스 위치에서 바닥으로 레이캐스트
 		if (PC->GetHitResultUnderCursor(ECC_Visibility, false, TraceHitResult))
 		{
 			FVector LookTarget = TraceHitResult.ImpactPoint;
 			FVector Direction = LookTarget - GetActorLocation();
-			Direction.Z = 0.f; // 높이 차이 무시
+			Direction.Z = 0.f;
 
-			FRotator LookAtRotation = FRotationMatrix::MakeFromX(Direction).Rotator();
-			SetActorRotation(LookAtRotation);
+			if (!Direction.IsNearlyZero())
+			{
+				FRotator TargetRotation = FRotationMatrix::MakeFromX(Direction).Rotator();
+				FRotator CurrentRotation = GetActorRotation();
+
+				// 즉시 회전 대신 RInterpTo를 사용하여 매우 빠르지만 부드럽게 회전
+				FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, GetWorld()->GetDeltaSeconds(), 25.0f);
+				SetActorRotation(NewRotation);
+			}
+		}
+	}
+}
+
+bool ADuckCharacter::IsAlignedWithCursor() const
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC) return false;
+
+	FHitResult TraceHitResult;
+	if (PC->GetHitResultUnderCursor(ECC_Visibility, false, TraceHitResult))
+	{
+		FVector LookTarget = TraceHitResult.ImpactPoint;
+		FVector TargetDirection = LookTarget - GetActorLocation();
+		TargetDirection.Z = 0.f;
+		TargetDirection.Normalize();
+
+		FVector CurrentForward = GetActorForwardVector();
+		
+		// 현재 정면과 조준 방향의 각도 차이 계산 (내적 활용)
+		float DotProduct = FVector::DotProduct(CurrentForward, TargetDirection);
+		// 아크코사인을 이용해 각도(라디안) 계산 후 도(Degree)로 변환
+		float AngleDegree = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(DotProduct, -1.0f, 1.0f)));
+
+		// 10도 이내면 정렬된 것으로 간주 (정밀도 조절 가능)
+		return AngleDegree < 10.0f;
+	}
+
+	return false;
+}
+
+void ADuckCharacter::Die()
+{
+	// TODO: 게임 오버 처리 또는 리스폰 로직
+	UE_LOG(LogTemp, Warning, TEXT("Player is DEAD!"));
+	
+	// 임시로 레벨 재시작
+	UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()));
+}
+
+void ADuckCharacter::RefreshHUD()
+{
+	// 1. 메인 화면 UI 업데이트 (PlayerController 경유)
+	if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(GetController()))
+	{
+		PC->UpdateHUDHealth(CurrentHealth, MaxHealth);
+		PC->UpdateHUDGold(Gold);
+	}
+
+	// 2. 머리 위 체력바 업데이트
+	if (HealthBarWidget)
+	{
+		UHealthBarWidget* HPWidget = Cast<UHealthBarWidget>(HealthBarWidget->GetUserWidgetObject());
+		if (HPWidget)
+		{
+			HPWidget->UpdateHealthPercent(GetHealthPercent());
 		}
 	}
 }
@@ -135,4 +243,5 @@ void ADuckCharacter::LookAtMouseCursor()
 void ADuckCharacter::AddGold(int32 Amount)
 {
 	Gold += Amount;
+	RefreshHUD();
 }

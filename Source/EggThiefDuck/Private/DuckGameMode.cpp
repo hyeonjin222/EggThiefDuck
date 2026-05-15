@@ -1,6 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "DuckGameMode.h"
+#include "DuckCharacter.h"
+#include "DuckPlayerController.h"
+#include "EnemyBase.h"
 #include "Engine/DirectionalLight.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -8,6 +11,10 @@
 ADuckGameMode::ADuckGameMode()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// 기본 클래스 설정
+	DefaultPawnClass = ADuckCharacter::StaticClass();
+	PlayerControllerClass = ADuckPlayerController::StaticClass();
 
 	// 기본 시간 설정: 밤 12시부터 시작
 	CurrentHour = 0.0f;
@@ -46,6 +53,12 @@ void ADuckGameMode::UpdateTime(float DeltaTime)
 	{
 		CurrentHour -= 24.0f;
 		CurrentDay++;
+	}
+
+	// HUD 시간 업데이트
+	if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
+	{
+		PC->UpdateHUDTime(CurrentDay, CurrentHour);
 	}
 }
 
@@ -106,12 +119,6 @@ void ADuckGameMode::CheckPhaseTransition()
 	}
 }
 
-#include "DuckGameMode.h"
-#include "Engine/DirectionalLight.h"
-#include "Components/DirectionalLightComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include "EnemyBase.h"
-
 void ADuckGameMode::SetPhase(EGamePhase NewPhase)
 {
 	if (CurrentPhase == NewPhase) return;
@@ -135,6 +142,6 @@ void ADuckGameMode::SetPhase(EGamePhase NewPhase)
 
 	FString PhaseName = (NewPhase == EGamePhase::Night) ? TEXT("Night") : 
 	                   (NewPhase == EGamePhase::Morning) ? TEXT("Morning") : TEXT("Day");
-	
+
 	UE_LOG(LogTemp, Log, TEXT("Game Phase Changed: %s"), *PhaseName);
 }

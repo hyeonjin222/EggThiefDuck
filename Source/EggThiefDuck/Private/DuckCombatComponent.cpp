@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "DuckCombatComponent.h"
+#include "DuckCharacter.h"
 #include "EggProjectile.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
@@ -23,8 +24,8 @@ void UDuckCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 
 	UpdateEggGauge(DeltaTime);
 
-	// 사격 중이고 쿨타임이 끝났으며 과열 상태가 아닐 때 발사
-	if (bIsFiring && !bIsOverheated)
+	// 사격 조건 확인: 마우스를 누르고 있거나(bIsFiring), 최소 한 발 보장이 필요한 상태(bWantsToFire)
+	if ((bIsFiring || bWantsToFire) && !bIsOverheated)
 	{
 		float CurrentTime = GetWorld()->GetTimeSeconds();
 		if (CurrentTime - LastFireTime >= FireRate)
@@ -39,11 +40,13 @@ void UDuckCombatComponent::StartFire()
 	if (bIsOverheated) return;
 
 	bIsFiring = true;
+	bWantsToFire = true; // 사격 의사 표시 (최소 1발 보장 시작)
 }
 
 void UDuckCombatComponent::StopFire()
 {
 	bIsFiring = false;
+	// bWantsToFire는 건드리지 않습니다. Fire() 함수에서 1발을 쏘고 나서 스스로 꺼질 것입니다.
 }
 
 void UDuckCombatComponent::Fire()
@@ -53,15 +56,23 @@ void UDuckCombatComponent::Fire()
 		// 탄약 부족 시 과열 처리
 		bIsOverheated = true;
 		bIsFiring = false;
+		bWantsToFire = false;
 		GetWorld()->GetTimerManager().SetTimer(OverheatTimerHandle, this, &UDuckCombatComponent::EndOverheat, OverheatPenaltyTime, false);
 		
 		UE_LOG(LogTemp, Warning, TEXT("Egg Gauge Empty! Overheated!"));
 		return;
 	}
 
-	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
 	if (OwnerCharacter && ProjectileClass)
 	{
+		// 캐릭터가 조준 방향과 충분히 정렬되었는지 확인
+		if (!OwnerCharacter->IsAlignedWithCursor())
+		{
+			// 정렬되지 않았다면 이번 사격은 스킵
+			return;
+		}
+
 		FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorForwardVector() * 100.f;
 		FRotator SpawnRotation = OwnerCharacter->GetActorRotation();
 
@@ -74,9 +85,14 @@ void UDuckCombatComponent::Fire()
 		{
 			Projectile->FireInDirection(OwnerCharacter->GetActorForwardVector());
 			
-			// 게이지 소모
+			// 게이지 소모 및 시간 기록
 			CurrentEggGauge -= GaugeCostPerShot;
 			LastFireTime = GetWorld()->GetTimeSeconds();
+
+			// [버그 해결 핵심] 한 발이라도 나갔다면 클릭에 의한 '최소 보장 의사'는 즉시 소모합니다.
+			// 이제 마우스를 계속 누르고 있다면 bIsFiring에 의해 연사가 유지되고, 
+			// 마우스를 뗐다면 여기서 bWantsToFire가 꺼지므로 정확히 한 발만 쏘고 멈춥니다.
+			bWantsToFire = false;
 		}
 	}
 }

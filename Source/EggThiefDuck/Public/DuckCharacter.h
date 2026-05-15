@@ -11,6 +11,7 @@ class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 class UDuckCombatComponent;
+class UWidgetComponent;
 struct FInputActionValue;
 
 UCLASS()
@@ -29,6 +30,12 @@ public:
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	/** 데미지 처리 함수 (언리얼 표준 API) */
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	/** 조준 정렬 확인 (사격 가능 여부) */
+	bool IsAlignedWithCursor() const;
+
 private:
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -39,6 +46,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UDuckCombatComponent> CombatComp;
+
+	/** 머리 위 체력바 UI 컴포넌트 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UWidgetComponent> HealthBarWidget;
 
 	/** 입력 에셋 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -64,9 +75,25 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float MoveSpeed = 600.f;
 
+	/** 마지막 사격 시간 (조준 유지용) */
+	float LastFireTime = 0.0f;
+
+	/** 스탯 (체력) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	float MaxHealth = 100.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	float CurrentHealth;
+
 	/** 재화 (Gold) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	int32 Gold = 0;
+
+	/** 사망 처리 */
+	void Die();
+
+	/** UI 동기화 함수 */
+	void RefreshHUD();
 
 public:
 	/** 골드 추가 함수 */
@@ -76,6 +103,10 @@ public:
 	/** 골드 양 반환 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	int32 GetGold() const { return Gold; }
+
+	/** 현재 체력 비율 반환 (0.0 ~ 1.0) */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetHealthPercent() const { return CurrentHealth / MaxHealth; }
 
 	/** 전투 컴포넌트 Getter */
 	UDuckCombatComponent* GetCombatComponent() const { return CombatComp; }

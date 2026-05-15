@@ -26,6 +26,9 @@ public:
 	void StartFire();
 	void StopFire();
 
+	/** 현재 사격 중인지 여부 반환 (실제 발사 루프 작동 여부) */
+	bool IsFiring() const { return bIsFiring || bWantsToFire; }
+
 	/** 달걀 게이지 즉시 회복 (아이템용) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void RefillGauge(float Amount);
@@ -66,8 +69,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Status", meta = (AllowPrivateAccess = "true"))
 	float OverheatPenaltyTime = 2.0f;
 
-	/** 현재 사격 중인지 여부 */
-	bool bIsFiring = false;
+	/** 사격 제어 변수 */
+	bool bIsFiring = false;    // 실제 연사 루프 중인지
+	bool bWantsToFire = false; // 1발 발사 보장용 플래그
 
 	/** 마지막 사격 시간 */
 	float LastFireTime = 0.f;
