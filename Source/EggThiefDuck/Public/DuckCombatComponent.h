@@ -44,9 +44,11 @@ private:
 	void UpdateEggGauge(float DeltaTime);
 
 private:
-	/** 발사 지연 시간 (공격 애니메이션 싱크용) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	float FireDelay = 0.1f;
+	/** 발사 지연 시간 비율 (0.0 ~ 1.0)
+	  * 공격 애니메이션 재생 시간 중 어느 시점에 실제 발사체가 생성될지 결정합니다. 
+	  * 예: 0.5면 애니메이션의 50% 지점, 0.3이면 30% 지점. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"))
+	float FireDelayRatio = 0.5f;
 
 	/** 발사체 클래스 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))

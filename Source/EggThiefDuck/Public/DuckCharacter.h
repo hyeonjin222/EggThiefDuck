@@ -39,7 +39,7 @@ public:
 	/** 애니메이션 몽타주 재생 함수들 */
 	void PlayHitReactMontage();
 	void PlayDeathMontage();
-	void PlayAttackMontage();
+	void PlayAttackMontage(float InPlayRate = 1.0f, float InBlendTime = -1.0f);
 
 private:
 	/** 컴포넌트 */

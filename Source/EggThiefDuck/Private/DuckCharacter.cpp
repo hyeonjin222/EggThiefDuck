@@ -11,6 +11,7 @@
 #include "DuckCombatComponent.h"
 #include "Components/WidgetComponent.h"
 #include "UI/HealthBarWidget.h"
+#include "Animation/AnimMontage.h"
 
 ADuckCharacter::ADuckCharacter()
 {
@@ -243,11 +244,19 @@ void ADuckCharacter::PlayDeathMontage()
 	}
 }
 
-void ADuckCharacter::PlayAttackMontage()
+void ADuckCharacter::PlayAttackMontage(float InPlayRate, float InBlendTime)
 {
-	if (AttackMontage)
+	if (AttackMontage && GetMesh() && GetMesh()->GetAnimInstance())
 	{
-		PlayAnimMontage(AttackMontage);
+		UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+		
+		// 1. 블렌드 설정 객체 생성 및 시간 설정
+		FAlphaBlend BlendInSettings;
+		BlendInSettings.SetBlendTime(InBlendTime);
+		
+		// 2. Montage_PlayWithBlendIn을 사용하여 재생 (블렌드 인 시간을 동적으로 덮어씌움)
+		// 이 함수는 연사 시 이전 몽타주를 블렌딩하며 자연스럽게 교체해줍니다.
+		AnimInst->Montage_PlayWithBlendIn(AttackMontage, BlendInSettings, InPlayRate);
 	}
 }
 

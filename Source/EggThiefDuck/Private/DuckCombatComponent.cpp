@@ -78,21 +78,14 @@ void UDuckCombatComponent::Fire()
 		float PlayRate = MontageLength / FireRate;
 
 		// 3. 공격 애니메이션 재생 (계산된 배율 적용)
-		if (OwnerCharacter->GetMesh() && OwnerCharacter->GetMesh()->GetAnimInstance())
-		{
-			OwnerCharacter->PlayAttackMontage(); 
-			
-			UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
-			if (AnimInst)
-			{
-				AnimInst->Montage_SetPlayRate(OwnerCharacter->GetAttackMontage(), PlayRate);
-			}
-		}
+		// 블렌드 타임 계산 공식: (FireRate - 0.1) / 2
+		float DynamicBlendTime = FMath::Max(0.01f, (FireRate - 0.1f) / 2.0f);
+		OwnerCharacter->PlayAttackMontage(PlayRate, DynamicBlendTime); 
 
 		// 4. 지연 발사 타이머 설정
-		// 사용자 요청: 애니메이션 진행률 50% 시점에 발사
-		// 애니메이션이 FireRate 시간에 맞춰 재생되므로, 그 절반인 FireRate * 0.5초 후에 발사합니다.
-		float ScaledFireDelay = FireRate * 0.5f;
+		// 사용자 설정 비율(FireDelayRatio)에 따라 발사 시점 결정
+		// 애니메이션이 FireRate 시간에 맞춰 재생되므로, 그 비율만큼의 시간 후에 발사합니다.
+		float ScaledFireDelay = FireRate * FireDelayRatio;
 		
 		FTimerHandle FireTimerHandle;
 		GetWorld()->GetTimerManager().SetTimer(FireTimerHandle, this, &UDuckCombatComponent::FireProjectile, ScaledFireDelay, false);
