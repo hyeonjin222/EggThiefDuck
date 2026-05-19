@@ -62,8 +62,13 @@ void AEggProjectile::FireInDirection(const FVector& ShootDirection)
 
 void AEggProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
+	// 이미 무언가에 부딪혔다면 중복 처리 방지
+	if (bHit) return;
+
 	if ((OtherActor != nullptr) && (OtherActor != this))
 	{
+		bHit = true;
+
 		AEnemyBase* Enemy = Cast<AEnemyBase>(OtherActor);
 		if (Enemy)
 		{
@@ -74,6 +79,27 @@ void AEggProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor
 			UGameplayStatics::ApplyDamage(Enemy, 20.0f, nullptr, this, UDamageType::StaticClass());
 		}
 
-		Destroy();
+		// --- 충돌 후 즉시 파괴하지 않고 "가짜 파괴" 처리 (VFX 재생용) ---
+		
+		// 1. 메시 숨기기
+		if (ProjectileMesh)
+		{
+			ProjectileMesh->SetVisibility(false);
+		}
+
+		// 2. 콜리전 비활성화 (더 이상 다른 것에 부딪히지 않음)
+		if (BoxComp)
+		{
+			BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+
+		// 3. 움직임 정지
+		if (ProjectileMovement)
+		{
+			ProjectileMovement->StopMovementImmediately();
+		}
+
+		// 4. 수명 연장 (약 1초 뒤에 실제로 메모리에서 삭제)
+		SetLifeSpan(1.0f);
 	}
 }

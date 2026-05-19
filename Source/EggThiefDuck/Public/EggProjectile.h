@@ -40,4 +40,7 @@ public:
 private:
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	/** 이미 무언가에 부딪혔는지 여부 (중복 처리 방지) */
+	bool bHit = false;
 };
