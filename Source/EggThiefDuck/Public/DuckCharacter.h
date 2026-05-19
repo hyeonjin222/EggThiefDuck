@@ -107,13 +107,62 @@ private:
 	/** 사망 처리 */
 	void Die();
 
+	/** 사망 애니메이션 종료 시 호출될 콜백 */
+	void OnDeathAnimationFinished();
+
+	FTimerHandle DeathTimerHandle;
+
 	/** 레벨업 로직 */
 	void LevelUp();
+
+	/** 무적 해제 */
+	void ResetInvincibility();
 
 	/** UI 동기화 함수 */
 	void RefreshHUD();
 
 protected:
+	/** 피격 연출 관련 (에디터 조절용) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|HitReaction")
+	float InvincibleDuration = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|HitReaction")
+	float KnockbackStrength = 500.0f;
+
+	/** 카메라 흔들림 에셋 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|HitReaction")
+	TSubclassOf<class UCameraShakeBase> HitCameraShakeClass;
+
+	/** 무적 상태 여부 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats|HitReaction")
+	bool bIsInvincible = false;
+
+	FTimerHandle InvincibleTimerHandle;
+
+	/** 사망 여부 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	bool bIsDead = false;
+
+	/** 피격 연출 이벤트 (BP에서 메시 깜빡임, 붉은 테두리 등 구현) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Stats|HitReaction")
+	void OnPlayerHit();
+
+	/** C++ 기반 피격 깜빡임 구현 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|HitReaction")
+	TObjectPtr<UMaterialInterface> HitOverlayMaterial;
+
+	void StartHitFlash();
+	void ToggleFlash();
+
+	FTimerHandle FlashTimerHandle;
+	int32 FlashCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|HitReaction")
+	int32 MaxFlashCount = 4; // 깜빡일 횟수 (켜짐/꺼짐 합계)
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|HitReaction")
+	float FlashInterval = 0.08f; // 깜빡이는 간격 (속도)
+
 	/** 애니메이션 에셋들 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
 	TObjectPtr<UAnimMontage> AttackMontage;
@@ -148,6 +197,10 @@ public:
 	/** 현재 체력 비율 반환 (0.0 ~ 1.0) */
 	UFUNCTION(BlueprintPure, Category = "Stats")
 	float GetHealthPercent() const { return CurrentHealth / MaxHealth; }
+
+	/** 사망 여부 반환 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	bool IsDead() const { return bIsDead; }
 
 	/** 애니메이션 에셋 Getter */
 	UAnimMontage* GetAttackMontage() const { return AttackMontage; }

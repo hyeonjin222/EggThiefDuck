@@ -44,4 +44,7 @@ void UDuckAnimInstance::NativeUpdateAnimation(float DeltaTime)
 	{
 		bIsFalling = Movement->IsFalling();
 	}
+
+	// 5. 사망 상태 가져오기
+	bIsDead = DuckCharacter->IsDead();
 }

@@ -12,6 +12,7 @@
 #include "Components/WidgetComponent.h"
 #include "UI/HealthBarWidget.h"
 #include "Animation/AnimMontage.h"
+#include "Components/CapsuleComponent.h"
 
 ADuckCharacter::ADuckCharacter()
 {
@@ -27,11 +28,11 @@ ADuckCharacter::ADuckCharacter()
 	SpringArmComp->bInheritRoll = false;
 	SpringArmComp->bInheritYaw = false;
 
-	// 카메라 래그 (Camera Lag) 설정: 부드럽게 따라오게 함
+	// 카메라 래그 (Camera Lag) 설정
 	SpringArmComp->bEnableCameraLag = true;
 	SpringArmComp->bEnableCameraRotationLag = true;
-	SpringArmComp->CameraLagSpeed = 5.0f;         // 이동 지연 속도 (낮을수록 더 부드럽고 느림)
-	SpringArmComp->CameraRotationLagSpeed = 5.0f; // 회전 지연 속도
+	SpringArmComp->CameraLagSpeed = 5.0f;
+	SpringArmComp->CameraRotationLagSpeed = 5.0f;
 
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	CameraComp->SetupAttachment(SpringArmComp);
@@ -42,15 +43,15 @@ ADuckCharacter::ADuckCharacter()
 	// 3. 체력바 UI 설정
 	HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
 	HealthBarWidget->SetupAttachment(RootComponent);
-	HealthBarWidget->SetRelativeLocation(FVector(0.f, 0.f, 120.f)); // 캐릭터 머리 위
-	HealthBarWidget->SetWidgetSpace(EWidgetSpace::Screen);          // 화면 공간 UI
+	HealthBarWidget->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
+	HealthBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
 
 	// 4. 캐릭터 회전 설정
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 	bUseControllerRotationYaw = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = false; // 이동 방향으로 자동 회전 끔 (조준을 위해)
+	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
 
 	// 초기 체력 설정
@@ -61,15 +62,12 @@ void ADuckCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Enhanced Input Context 추가
 	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
-		
-		// 마우스 커서 표시 및 감춤 설정
 		PlayerController->bShowMouseCursor = true;
 	}
 
@@ -80,19 +78,18 @@ void ADuckCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 1. 조건부 회전 로직 (사격 중이거나 사격 후 1.0초 동안 유지)
+	if (bIsDead) return;
+
 	bool bShouldLookAtMouse = (CombatComp && CombatComp->IsFiring()) || 
 	                          (GetWorld()->GetTimeSeconds() - LastFireTime < 1.0f);
 
 	if (bShouldLookAtMouse)
 	{
-		// 마우스 방향으로 부드럽고 빠르게 조준
 		GetCharacterMovement()->bOrientRotationToMovement = false;
 		LookAtMouseCursor();
 	}
 	else
 	{
-		// 평소: 이동 방향 바라보기
 		GetCharacterMovement()->bOrientRotationToMovement = true;
 	}
 }
@@ -104,8 +101,6 @@ void ADuckCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ADuckCharacter::Move);
-		
-		// 사격 바인딩
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ADuckCharacter::StartFire);
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ADuckCharacter::StopFire);
 	}
@@ -113,10 +108,36 @@ void ADuckCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 float ADuckCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	if (bIsInvincible || bIsDead || CurrentHealth <= 0.f) return 0.f;
 
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.f, MaxHealth);
 	
+	// 1. 무적 상태
+	bIsInvincible = true;
+	GetWorldTimerManager().SetTimer(InvincibleTimerHandle, this, &ADuckCharacter::ResetInvincibility, InvincibleDuration, false);
+
+	// 2. 넉백
+	if (DamageCauser)
+	{
+		FVector LaunchDir = GetActorLocation() - DamageCauser->GetActorLocation();
+		LaunchDir.Z = 0.f;
+		LaunchDir.Normalize();
+		LaunchCharacter(LaunchDir * KnockbackStrength, true, true);
+	}
+
+	// 3. 카메라 흔들림 (Client 기반으로 수정)
+	if (HitCameraShakeClass)
+	{
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			PC->ClientStartCameraShake(HitCameraShakeClass);
+		}
+	}
+
+	// 4. 연출 이벤트
+	OnPlayerHit();
+	StartHitFlash();
 	RefreshHUD();
 
 	if (CurrentHealth <= 0.f)
@@ -125,23 +146,23 @@ float ADuckCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 	}
 	else
 	{
-		// 살아있다면 피격 애니메이션 재생
 		PlayHitReactMontage();
 	}
 
 	return ActualDamage;
 }
 
+void ADuckCharacter::ResetInvincibility() { bIsInvincible = false; }
+
 void ADuckCharacter::Move(const FInputActionValue& Value)
 {
-	FVector2D MovementVector = Value.Get<FVector2D>();
+	if (bIsDead) return;
 
+	FVector2D MovementVector = Value.Get<FVector2D>();
 	if (Controller != nullptr)
 	{
-		// 카메라 기준이 아닌 월드 절대 좌표 기준으로 이동 (탑뷰 전형 방식)
 		const FVector ForwardDirection(1.f, 0.f, 0.f);
 		const FVector RightDirection(0.f, 1.f, 0.f);
-
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
@@ -149,20 +170,17 @@ void ADuckCharacter::Move(const FInputActionValue& Value)
 
 void ADuckCharacter::StartFire()
 {
+	if (bIsDead) return;
 	if (CombatComp)
 	{
 		CombatComp->StartFire();
-		// 사격 시작 시 타이머 초기화 (조준 유지 시작)
 		LastFireTime = GetWorld()->GetTimeSeconds();
 	}
 }
 
 void ADuckCharacter::StopFire()
 {
-	if (CombatComp)
-	{
-		CombatComp->StopFire();
-	}
+	if (CombatComp) CombatComp->StopFire();
 }
 
 void ADuckCharacter::LookAtMouseCursor()
@@ -176,15 +194,10 @@ void ADuckCharacter::LookAtMouseCursor()
 			FVector LookTarget = TraceHitResult.ImpactPoint;
 			FVector Direction = LookTarget - GetActorLocation();
 			Direction.Z = 0.f;
-
 			if (!Direction.IsNearlyZero())
 			{
 				FRotator TargetRotation = FRotationMatrix::MakeFromX(Direction).Rotator();
-				FRotator CurrentRotation = GetActorRotation();
-
-				// 즉시 회전 대신 RInterpTo를 사용하여 매우 빠르지만 부드럽게 회전
-				FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, GetWorld()->GetDeltaSeconds(), 25.0f);
-				SetActorRotation(NewRotation);
+				SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRotation, GetWorld()->GetDeltaSeconds(), 25.0f));
 			}
 		}
 	}
@@ -194,103 +207,129 @@ bool ADuckCharacter::IsAlignedWithCursor() const
 {
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC) return false;
-
 	FHitResult TraceHitResult;
 	if (PC->GetHitResultUnderCursor(ECC_Visibility, false, TraceHitResult))
 	{
 		FVector LookTarget = TraceHitResult.ImpactPoint;
-		FVector TargetDirection = LookTarget - GetActorLocation();
+		FVector TargetDirection = (LookTarget - GetActorLocation());
 		TargetDirection.Z = 0.f;
 		TargetDirection.Normalize();
-
-		FVector CurrentForward = GetActorForwardVector();
-		
-		// 현재 정면과 조준 방향의 각도 차이 계산 (내적 활용)
-		float DotProduct = FVector::DotProduct(CurrentForward, TargetDirection);
-		// 아크코사인을 이용해 각도(라디안) 계산 후 도(Degree)로 변환
-		float AngleDegree = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(DotProduct, -1.0f, 1.0f)));
-
-		// 10도 이내면 정렬된 것으로 간주 (정밀도 조절 가능)
+		float AngleDegree = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(GetActorForwardVector(), TargetDirection), -1.0f, 1.0f)));
 		return AngleDegree < 10.0f;
 	}
-
 	return false;
 }
-
 void ADuckCharacter::Die()
 {
-	// 사망 애니메이션 재생
-	PlayDeathMontage();
+	if (bIsDead) return;
+	bIsDead = true;
 
-	UE_LOG(LogTemp, Warning, TEXT("Player is DEAD!"));
-	
-	// TODO: 사망 연출 후 레벨 재시작 (타이머 등 활용 권장)
-	// UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()));
-}
+	// 1. 입력 및 이동 차단
+	GetCharacterMovement()->DisableMovement();
+	GetCharacterMovement()->StopMovementImmediately();
 
-void ADuckCharacter::PlayHitReactMontage()
-{
-	if (HitReactMontage)
+	// 2. 사격 중지
+	if (CombatComp)
 	{
-		PlayAnimMontage(HitReactMontage);
+		CombatComp->StopFire();
 	}
-}
 
-void ADuckCharacter::PlayDeathMontage()
-{
+	// 3. UI 및 충돌 처리
+	if (HealthBarWidget)
+	{
+		HealthBarWidget->SetVisibility(false);
+	}
+	
+	// 캡슐 충돌 비활성화 (시체에 걸리지 않도록)
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 4. 사망 애니메이션 재생 및 종료 대기
 	if (DeathMontage)
 	{
-		PlayAnimMontage(DeathMontage);
+		float Duration = PlayAnimMontage(DeathMontage);
+		if (Duration > 0.f)
+		{
+			// 애니메이션이 완전히 끝나는 시점에 포즈를 고정
+			// (몽타주의 Blend Out 시간이 0일 때 가장 정확함)
+			GetWorldTimerManager().SetTimer(DeathTimerHandle, this, &ADuckCharacter::OnDeathAnimationFinished, Duration, false);
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Player is DEAD!"));
+}
+
+void ADuckCharacter::OnDeathAnimationFinished()
+{
+	if (GetMesh())
+	{
+		// 애니메이션 업데이트 중지 및 현재 포즈 고정
+		GetMesh()->bPauseAnims = true;
 	}
 }
 
+void ADuckCharacter::StartHitFlash()
+{
+	if (!HitOverlayMaterial || !GetMesh()) return;
+
+	FlashCount = 0;
+	// 에디터에서 설정한 간격으로 깜빡임 실행
+	GetWorldTimerManager().SetTimer(FlashTimerHandle, this, &ADuckCharacter::ToggleFlash, FlashInterval, true);
+}
+
+void ADuckCharacter::ToggleFlash()
+{
+	FlashCount++;
+	
+	if (FlashCount > MaxFlashCount || bIsDead)
+	{
+		GetWorldTimerManager().ClearTimer(FlashTimerHandle);
+		GetMesh()->SetOverlayMaterial(nullptr);
+		return;
+	}
+
+	// 홀수 번째는 빨간색 적용, 짝수 번째는 해제
+	if (FlashCount % 2 == 1)
+	{
+		GetMesh()->SetOverlayMaterial(HitOverlayMaterial);
+	}
+	else
+	{
+		GetMesh()->SetOverlayMaterial(nullptr);
+	}
+}
+
+
+void ADuckCharacter::PlayHitReactMontage() { if (HitReactMontage) PlayAnimMontage(HitReactMontage); }
+void ADuckCharacter::PlayDeathMontage() { if (DeathMontage) PlayAnimMontage(DeathMontage); }
 void ADuckCharacter::PlayAttackMontage(float InPlayRate, float InBlendTime)
 {
 	if (AttackMontage && GetMesh() && GetMesh()->GetAnimInstance())
 	{
-		UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-		
-		// 1. 블렌드 설정 객체 생성 및 시간 설정
 		FAlphaBlend BlendInSettings;
 		BlendInSettings.SetBlendTime(InBlendTime);
-		
-		// 2. Montage_PlayWithBlendIn을 사용하여 재생 (블렌드 인 시간을 동적으로 덮어씌움)
-		// 이 함수는 연사 시 이전 몽타주를 블렌딩하며 자연스럽게 교체해줍니다.
-		AnimInst->Montage_PlayWithBlendIn(AttackMontage, BlendInSettings, InPlayRate);
+		GetMesh()->GetAnimInstance()->Montage_PlayWithBlendIn(AttackMontage, BlendInSettings, InPlayRate);
 	}
 }
 
 void ADuckCharacter::RefreshHUD()
 {
-	// 1. 메인 화면 UI 업데이트 (PlayerController 경유)
 	if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(GetController()))
 	{
 		PC->UpdateHUDHealth(CurrentHealth, MaxHealth);
 		PC->UpdateHUDXP(Level, CurrentExp, ExpToNextLevel);
 		PC->UpdateHUDGold(Gold);
 	}
-
-	// 2. 머리 위 체력바 업데이트
 	if (HealthBarWidget)
 	{
 		UHealthBarWidget* HPWidget = Cast<UHealthBarWidget>(HealthBarWidget->GetUserWidgetObject());
-		if (HPWidget)
-		{
-			HPWidget->UpdateHealthPercent(GetHealthPercent());
-		}
+		if (HPWidget) HPWidget->UpdateHealthPercent(GetHealthPercent());
 	}
 }
 
 void ADuckCharacter::AddExp(float Amount)
 {
 	CurrentExp += Amount;
-
-	// 레벨업 체크
-	while (CurrentExp >= ExpToNextLevel)
-	{
-		LevelUp();
-	}
-
+	while (CurrentExp >= ExpToNextLevel) LevelUp();
 	RefreshHUD();
 }
 
@@ -298,13 +337,8 @@ void ADuckCharacter::LevelUp()
 {
 	CurrentExp -= ExpToNextLevel;
 	Level++;
-
-	// 다음 레벨 요구치 상승 (예: 레벨당 20% 증가)
 	ExpToNextLevel *= 1.2f;
-
 	UE_LOG(LogTemp, Warning, TEXT("Level Up! Current Level: %d"), Level);
-
-	// TODO: 게임 일시정지 및 강화 선택 UI 팝업 로직 추가 예정
 }
 
 void ADuckCharacter::AddGold(int32 Amount)

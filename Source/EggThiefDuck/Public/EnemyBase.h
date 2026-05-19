@@ -8,6 +8,7 @@
 
 class UBoxComponent;
 class UWidgetComponent;
+class UStaticMeshComponent;
 
 /** --- 아이템 드롭 시스템 구조체 --- */
 USTRUCT(BlueprintType)
@@ -62,10 +63,14 @@ public:
 	/** 외부에서 물리적 충격을 줄 때 사용 */
 	void ApplyKnockback(FVector ImpactImpulse);
 
-	/** 데미지 처리 함수 (언리얼 표준 API) */
+	/** 공격 감지 충돌 이벤트 */
+	UFUNCTION()
+	void OnAttackOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	/** 데미지 처리 함수 */
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
-	/** 도망 상태로 전환 */
+	/** 상태 전환 */
 	UFUNCTION(BlueprintCallable, Category = "Enemy|AI")
 	void SetState(EEnemyState NewState);
 
@@ -74,26 +79,28 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
 	EEnemyState CurrentState = EEnemyState::Chasing;
 
-	/** 도망 전 대기 타이머 */
 	bool bIsFleeingPaused = false;
 	FTimerHandle FleeDelayTimerHandle;
 
 	void ResumeFleeing();
 
-	/** 박스 형태의 물리 루트 */
+	/** 물리 루트 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Collision")
 	TObjectPtr<UBoxComponent> BoxComp;
 
-	/** 비주얼을 위한 스태틱 메시 */
+	/** 공격 범위 감지 박스 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Collision")
+	TObjectPtr<UBoxComponent> AttackBox;
+
+	/** 비주얼 메시 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Visual")
 	TObjectPtr<UStaticMeshComponent> EnemyMesh;
 
-	/** 체력바 UI 컴포넌트 */
+	/** 머리 위 체력바 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|UI")
 	TObjectPtr<UWidgetComponent> HealthBarWidget;
 
-	/** --- 물리 기반 Hopping 로직 --- */
-	
+	/** 무브먼트 수치 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Movement")
 	float JumpImpulse = 600.0f;
 
@@ -104,29 +111,28 @@ protected:
 	float HopInterval = 0.5f;
 
 	float HopTimer = 0.0f;
-
-	/** 에디터에서 설정한 초기 메시 스케일 저장용 */
 	FVector BaseMeshScale;
 
 	bool IsGrounded();
 	void PhysicalHop();
 
-	/** 사망 처리 */
+	/** 사망 및 드롭 */
 	void Die();
 
-	/** --- 아이템 드롭 테이블 --- */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Drop")
 	TArray<FItemDropRecord> DropTable;
 
-	/** 데미지 숫자 스폰 함수 (BP에서 오버라이드 가능) */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Enemy|UI")
 	void SpawnDamageText(float DamageAmount);
 
-	/** 데미지 숫자 액터 클래스 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|UI")
 	TSubclassOf<class ADamageTextActor> DamageTextClass;
 
-	/** 스탯 */
+	/** 공격력 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Combat")
+	float AttackDamage = 10.0f;
+
+	/** 체력 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Stats")
 	float MaxHealth = 100.0f;
 

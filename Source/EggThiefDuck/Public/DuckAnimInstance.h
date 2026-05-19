@@ -31,6 +31,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	bool bIsFiring;
 
+	/** 사망 여부 */
+	UPROPERTY(BlueprintReadOnly, Category = "Stats")
+	bool bIsDead;
+
 	/** 공중에 떠 있는지 여부 */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsFalling;
