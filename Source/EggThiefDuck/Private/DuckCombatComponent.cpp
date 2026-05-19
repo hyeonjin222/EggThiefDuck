@@ -5,6 +5,7 @@
 #include "EggProjectile.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
+#include "Data/UpgradeDataAsset.h"
 
 UDuckCombatComponent::UDuckCombatComponent()
 {
@@ -100,24 +101,67 @@ void UDuckCombatComponent::FireProjectile()
 	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
 	if (OwnerCharacter && ProjectileClass)
 	{
-		FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorForwardVector() * 100.f;
-		FRotator SpawnRotation = OwnerCharacter->GetActorRotation();
+		float SpreadAngle = 10.0f; // 탄퍼짐 각도
+		float StartYaw = -(MultiShotCount - 1) * SpreadAngle * 0.5f;
 
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = OwnerCharacter;
-		SpawnParams.Instigator = OwnerCharacter;
-
-		AEggProjectile* Projectile = GetWorld()->SpawnActor<AEggProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
-		if (Projectile)
+		for (int32 i = 0; i < MultiShotCount; ++i)
 		{
-			Projectile->FireInDirection(OwnerCharacter->GetActorForwardVector());
-			
-			// 게이지 소모
-			CurrentEggGauge -= GaugeCostPerShot;
+			FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorForwardVector() * 100.f;
+			FRotator SpawnRotation = OwnerCharacter->GetActorRotation();
+			SpawnRotation.Yaw += StartYaw + (i * SpreadAngle);
 
-			// 클릭 보장 의사 소모
-			bWantsToFire = false;
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = OwnerCharacter;
+			SpawnParams.Instigator = OwnerCharacter;
+
+			AEggProjectile* Projectile = GetWorld()->SpawnActor<AEggProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
+			if (Projectile)
+			{
+				// 캐릭터 스탯 및 업그레이드 효과 전달
+				Projectile->SetDamage(OwnerCharacter->GetBaseDamage());
+				Projectile->SetPiercing(bPiercingEnabled);
+				Projectile->SetExplosive(bExplosiveEnabled);
+				
+				Projectile->FireInDirection(SpawnRotation.Vector());
+			}
 		}
+
+		// 게이지 소모 (1회 발사 시퀀스당 1번만 소모)
+		CurrentEggGauge -= GaugeCostPerShot;
+
+		// 클릭 보장 의사 소모
+		bWantsToFire = false;
+	}
+}
+
+void UDuckCombatComponent::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
+{
+	if (!Upgrade) return;
+
+	switch (Upgrade->UpgradeType)
+	{
+	case EUpgradeType::Stat_FireRate:
+		// 연사 속도는 낮을수록 빠름 (최소 0.05초 제한)
+		FireRate = FMath::Max(0.05f, FireRate - Upgrade->Value);
+		break;
+	case EUpgradeType::Stat_GaugeMax:
+		MaxEggGauge += Upgrade->Value;
+		CurrentEggGauge = FMath::Min(MaxEggGauge, CurrentEggGauge + Upgrade->Value);
+		break;
+	case EUpgradeType::Stat_GaugeRecovery:
+		GaugeRecoveryRate += Upgrade->Value;
+		break;
+	case EUpgradeType::Mech_MultiShot:
+		MultiShotCount += FMath::RoundToInt(Upgrade->Value);
+		break;
+	case EUpgradeType::Mech_Piercing:
+		bPiercingEnabled = true;
+		break;
+	case EUpgradeType::Mech_Explosive:
+		bExplosiveEnabled = true;
+		break;
+	default:
+		break;
 	}
 }
 

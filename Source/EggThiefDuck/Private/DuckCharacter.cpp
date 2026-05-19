@@ -13,6 +13,9 @@
 #include "UI/HealthBarWidget.h"
 #include "Animation/AnimMontage.h"
 #include "Components/CapsuleComponent.h"
+#include "Data/UpgradeDataAsset.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 
 ADuckCharacter::ADuckCharacter()
 {
@@ -338,7 +341,124 @@ void ADuckCharacter::LevelUp()
 	CurrentExp -= ExpToNextLevel;
 	Level++;
 	ExpToNextLevel *= 1.2f;
+
+	// 1. 게임 일시 정지
+	UGameplayStatics::SetGamePaused(GetWorld(), true);
+
+	// 2. 마우스 커서 활성화 및 입력 모드 변경
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		PC->bShowMouseCursor = true;
+		FInputModeGameAndUI InputMode;
+		PC->SetInputMode(InputMode);
+	}
+
+	// 3. 업그레이드 후보군 랜덤 선택 (3개)
+	TArray<UUpgradeDataAsset*> Options;
+	TArray<TObjectPtr<UUpgradeDataAsset>> Pool = UpgradePool;
+
+	// 최대 레벨에 도달하지 않은 업그레이드만 필터링
+	Pool.RemoveAll([this](const TObjectPtr<UUpgradeDataAsset>& Asset) {
+		if (!Asset) return true;
+		const int32* CurrentLvl = AppliedUpgradeLevels.Find(Asset->UpgradeID);
+		return CurrentLvl && *CurrentLvl >= Asset->MaxLevel;
+	});
+
+	// 랜덤하게 3개 추출
+	while (Options.Num() < 3 && Pool.Num() > 0)
+	{
+		int32 Index = FMath::RandRange(0, Pool.Num() - 1);
+		Options.Add(Pool[Index]);
+		Pool.RemoveAt(Index);
+	}
+
+	// 4. UI 이벤트 호출 (블루프린트에서 UI 생성 및 데이터 전달)
+	OnShowUpgradeScreen(Options);
+
 	UE_LOG(LogTemp, Warning, TEXT("Level Up! Current Level: %d"), Level);
+}
+
+void ADuckCharacter::SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade)
+{
+	if (SelectedUpgrade)
+	{
+		ApplyUpgrade(SelectedUpgrade);
+	}
+
+	// 게임 일시 정지 해제
+	UGameplayStatics::SetGamePaused(GetWorld(), false);
+
+	// 입력 모드 복구
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		FInputModeGameOnly InputMode;
+		PC->SetInputMode(InputMode);
+	}
+}
+
+void ADuckCharacter::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
+{
+	if (!Upgrade) return;
+
+	// 1. 업그레이드 단계 기록
+	int32& CurrentLvl = AppliedUpgradeLevels.FindOrAdd(Upgrade->UpgradeID);
+	CurrentLvl++;
+
+	UE_LOG(LogTemp, Warning, TEXT("Applying Upgrade: %s (Level %d)"), *Upgrade->UpgradeName.ToString(), CurrentLvl);
+
+	// 2. 스탯 및 기능 적용
+	switch (Upgrade->UpgradeType)
+	{
+	case EUpgradeType::Stat_MaxHealth:
+		MaxHealth += Upgrade->Value;
+		CurrentHealth = FMath::Clamp(CurrentHealth + Upgrade->Value, 0.f, MaxHealth);
+		break;
+	case EUpgradeType::Stat_MoveSpeed:
+		MoveSpeed += Upgrade->Value;
+		GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+		break;
+	case EUpgradeType::Stat_AttackDamage:
+		BaseDamage += Upgrade->Value;
+		break;
+	case EUpgradeType::Stat_FireRate:
+	case EUpgradeType::Stat_GaugeMax:
+	case EUpgradeType::Stat_GaugeRecovery:
+	case EUpgradeType::Mech_MultiShot:
+	case EUpgradeType::Mech_Piercing:
+	case EUpgradeType::Mech_Explosive:
+		if (CombatComp) CombatComp->ApplyUpgrade(Upgrade);
+		break;
+	case EUpgradeType::Special_OrbitingEgg:
+	case EUpgradeType::Special_EggMine:
+		if (Upgrade->SpecialActorClass)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			GetWorld()->SpawnActor<AActor>(Upgrade->SpecialActorClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+		}
+		break;
+	}
+
+	// 3. 연출 (VFX & Sound)
+	if (Upgrade->UpgradeVFX)
+	{
+		PlayUpgradeVFX(Upgrade->UpgradeVFX);
+	}
+	
+	if (Upgrade->UpgradeSound)
+	{
+		UGameplayStatics::PlaySound2D(this, Upgrade->UpgradeSound);
+	}
+
+	RefreshHUD();
+}
+
+void ADuckCharacter::PlayUpgradeVFX(UNiagaraSystem* VFX)
+{
+	if (VFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), VFX, GetActorLocation());
+	}
 }
 
 void ADuckCharacter::AddGold(int32 Amount)

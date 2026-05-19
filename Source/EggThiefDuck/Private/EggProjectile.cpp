@@ -65,41 +65,64 @@ void AEggProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor
 	// 이미 무언가에 부딪혔다면 중복 처리 방지
 	if (bHit) return;
 
-	if ((OtherActor != nullptr) && (OtherActor != this))
+	if ((OtherActor != nullptr) && (OtherActor != this) && !HitActors.Contains(OtherActor))
 	{
-		bHit = true;
-
 		AEnemyBase* Enemy = Cast<AEnemyBase>(OtherActor);
 		if (Enemy)
 		{
+			// 관통 중복 히트 방지를 위해 기록
+			HitActors.Add(OtherActor);
+
 			FVector ImpactImpulse = ProjectileMovement->Velocity * 0.4f;
 			ImpactImpulse.Z = 200.0f;
 			Enemy->ApplyKnockback(ImpactImpulse);
 
-			UGameplayStatics::ApplyDamage(Enemy, 20.0f, nullptr, this, UDamageType::StaticClass());
-		}
+			// 강화된 데미지 적용
+			UGameplayStatics::ApplyDamage(Enemy, Damage, nullptr, this, UDamageType::StaticClass());
 
-		// --- 충돌 후 즉시 파괴하지 않고 "가짜 파괴" 처리 (VFX 재생용) ---
-		
-		// 1. 메시 숨기기
-		if (ProjectileMesh)
+			// 관통이 아니면 히트 판정 (소멸 시작)
+			if (!bIsPiercing)
+			{
+				bHit = true;
+			}
+		}
+		else
 		{
-			ProjectileMesh->SetVisibility(false);
+			// 벽이나 장애물에 부딪히면 무조건 소멸
+			bHit = true;
 		}
 
-		// 2. 콜리전 비활성화 (더 이상 다른 것에 부딪히지 않음)
-		if (BoxComp)
+		// 폭발 강화가 되어 있으면 주변에 추가 데미지
+		if (bIsExplosive && (bHit || Enemy))
 		{
-			BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			UGameplayStatics::ApplyRadialDamage(this, Damage * 0.5f, GetActorLocation(), 200.0f, UDamageType::StaticClass(), TArray<AActor*>(), this);
+			// TODO: 폭발 VFX/SFX 재생 로직 추가 가능
 		}
 
-		// 3. 움직임 정지
-		if (ProjectileMovement)
+		if (bHit)
 		{
-			ProjectileMovement->StopMovementImmediately();
-		}
+			// --- 충돌 후 즉시 파괴하지 않고 "가짜 파괴" 처리 (VFX 재생용) ---
+			
+			// 1. 메시 숨기기
+			if (ProjectileMesh)
+			{
+				ProjectileMesh->SetVisibility(false);
+			}
 
-		// 4. 수명 연장 (약 1초 뒤에 실제로 메모리에서 삭제)
-		SetLifeSpan(1.0f);
+			// 2. 콜리전 비활성화
+			if (BoxComp)
+			{
+				BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			}
+
+			// 3. 움직임 정지
+			if (ProjectileMovement)
+			{
+				ProjectileMovement->StopMovementImmediately();
+			}
+
+			// 4. 수명 연장 (약 1초 뒤에 실제로 메모리에서 삭제)
+			SetLifeSpan(1.0f);
+		}
 	}
 }

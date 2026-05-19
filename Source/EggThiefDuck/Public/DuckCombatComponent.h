@@ -33,6 +33,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void RefillGauge(float Amount);
 
+	/** 업그레이드 적용 */
+	void ApplyUpgrade(class UUpgradeDataAsset* Upgrade);
+
 private:
 	/** 발사 시도 (애니메이션 및 타이머 시작) */
 	void Fire();
@@ -70,6 +73,16 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Gauge", meta = (AllowPrivateAccess = "true"))
 	float GaugeRecoveryRate = 15.f;
+
+	/** 업그레이드 메커니즘 상태 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Mech", meta = (AllowPrivateAccess = "true"))
+	int32 MultiShotCount = 1;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Mech", meta = (AllowPrivateAccess = "true"))
+	bool bPiercingEnabled = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Mech", meta = (AllowPrivateAccess = "true"))
+	bool bExplosiveEnabled = false;
 
 	/** 과열 상태 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Status", meta = (AllowPrivateAccess = "true"))

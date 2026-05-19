@@ -12,6 +12,8 @@ class UInputMappingContext;
 class UInputAction;
 class UDuckCombatComponent;
 class UWidgetComponent;
+class UUpgradeDataAsset;
+class UNiagaraSystem;
 struct FInputActionValue;
 
 UCLASS()
@@ -41,6 +43,15 @@ public:
 	void PlayDeathMontage();
 	void PlayAttackMontage(float InPlayRate = 1.0f, float InBlendTime = -1.0f);
 
+	/** 업그레이드 선택 (UI에서 호출) */
+	UFUNCTION(BlueprintCallable, Category = "Upgrades")
+	void SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade);
+
+protected:
+	/** 레벨업 시 업그레이드 화면 표시 이벤트 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Upgrades")
+	void OnShowUpgradeScreen(const TArray<UUpgradeDataAsset*>& Options);
+
 private:
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -59,6 +70,9 @@ private:
 	/** 입력 에셋 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputMappingContext> UIInputMappingContext;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> MoveAction;
@@ -90,6 +104,10 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
 	float CurrentHealth;
 
+	/** 공격력 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	float BaseDamage = 20.0f;
+
 	/** 성장 시스템 (XP & Level) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
 	int32 Level = 1;
@@ -99,6 +117,14 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats", meta = (AllowPrivateAccess = "true"))
 	float ExpToNextLevel = 100.0f;
+
+	/** 업그레이드 풀 (에디터에서 설정) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Upgrades", meta = (AllowPrivateAccess = "true"))
+	TArray<TObjectPtr<UUpgradeDataAsset>> UpgradePool;
+
+	/** 현재 적용된 업그레이드 단계 저장 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Upgrades", meta = (AllowPrivateAccess = "true"))
+	TMap<FName, int32> AppliedUpgradeLevels;
 
 	/** 재화 (Gold) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
@@ -114,6 +140,12 @@ private:
 
 	/** 레벨업 로직 */
 	void LevelUp();
+
+	/** 실제 업그레이드 적용 로직 */
+	void ApplyUpgrade(UUpgradeDataAsset* Upgrade);
+
+	/** 업그레이드 VFX 재생 */
+	void PlayUpgradeVFX(UNiagaraSystem* VFX);
 
 	/** 무적 해제 */
 	void ResetInvincibility();
@@ -193,6 +225,10 @@ public:
 	/** 현재 골드 반환 */
 	UFUNCTION(BlueprintCallable, Category = "Stats")
 	int32 GetGold() const { return Gold; }
+
+	/** 현재 공격력 반환 */
+	UFUNCTION(BlueprintCallable, Category = "Stats")
+	float GetBaseDamage() const { return BaseDamage; }
 
 	/** 현재 체력 비율 반환 (0.0 ~ 1.0) */
 	UFUNCTION(BlueprintPure, Category = "Stats")

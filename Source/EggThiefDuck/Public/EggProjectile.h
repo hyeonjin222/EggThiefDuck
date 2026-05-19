@@ -26,6 +26,15 @@ public:
 
 	void FireInDirection(const FVector& ShootDirection);
 
+	/** 데미지 설정 */
+	void SetDamage(float InDamage) { Damage = InDamage; }
+
+	/** 관통 여부 설정 */
+	void SetPiercing(bool bInPiercing) { bIsPiercing = bInPiercing; }
+
+	/** 폭발 여부 설정 */
+	void SetExplosive(bool bInExplosive) { bIsExplosive = bInExplosive; }
+
 	/** --- 컴포넌트 (BoxComp로 이름 통일 및 노출) --- */
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile|Collision")
@@ -43,4 +52,17 @@ private:
 
 	/** 이미 무언가에 부딪혔는지 여부 (중복 처리 방지) */
 	bool bHit = false;
+
+	/** 이미 부딪힌 액터 목록 (관통 시 중복 데미지 방지) */
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> HitActors;
+
+	/** 데미지 수치 */
+	float Damage = 20.f;
+
+	/** 관통 상태 */
+	bool bIsPiercing = false;
+
+	/** 폭발 상태 */
+	bool bIsExplosive = false;
 };
