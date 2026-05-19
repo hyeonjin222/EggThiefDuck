@@ -266,6 +266,7 @@ void ADuckCharacter::RefreshHUD()
 	if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(GetController()))
 	{
 		PC->UpdateHUDHealth(CurrentHealth, MaxHealth);
+		PC->UpdateHUDXP(Level, CurrentExp, ExpToNextLevel);
 		PC->UpdateHUDGold(Gold);
 	}
 
@@ -278,6 +279,32 @@ void ADuckCharacter::RefreshHUD()
 			HPWidget->UpdateHealthPercent(GetHealthPercent());
 		}
 	}
+}
+
+void ADuckCharacter::AddExp(float Amount)
+{
+	CurrentExp += Amount;
+
+	// 레벨업 체크
+	while (CurrentExp >= ExpToNextLevel)
+	{
+		LevelUp();
+	}
+
+	RefreshHUD();
+}
+
+void ADuckCharacter::LevelUp()
+{
+	CurrentExp -= ExpToNextLevel;
+	Level++;
+
+	// 다음 레벨 요구치 상승 (예: 레벨당 20% 증가)
+	ExpToNextLevel *= 1.2f;
+
+	UE_LOG(LogTemp, Warning, TEXT("Level Up! Current Level: %d"), Level);
+
+	// TODO: 게임 일시정지 및 강화 선택 UI 팝업 로직 추가 예정
 }
 
 void ADuckCharacter::AddGold(int32 Amount)

@@ -90,12 +90,25 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
 	float CurrentHealth;
 
+	/** 성장 시스템 (XP & Level) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	int32 Level = 1;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	float CurrentExp = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	float ExpToNextLevel = 100.0f;
+
 	/** 재화 (Gold) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	int32 Gold = 0;
 
 	/** 사망 처리 */
 	void Die();
+
+	/** 레벨업 로직 */
+	void LevelUp();
 
 	/** UI 동기화 함수 */
 	void RefreshHUD();
@@ -112,12 +125,24 @@ protected:
 	TObjectPtr<UAnimMontage> DeathMontage;
 
 public:
+	/** 경험치 추가 함수 */
+	UFUNCTION(BlueprintCallable, Category = "Stats")
+	void AddExp(float Amount);
+
+	/** 현재 레벨 반환 */
+	UFUNCTION(BlueprintCallable, Category = "Stats")
+	int32 GetCharacterLevel() const { return Level; }
+
+	/** 경험치 비율 반환 (0.0 ~ 1.0) */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetExpPercent() const { return CurrentExp / ExpToNextLevel; }
+
 	/** 골드 추가 함수 */
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Stats")
 	void AddGold(int32 Amount);
 
-	/** 골드 양 반환 */
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	/** 현재 골드 반환 */
+	UFUNCTION(BlueprintCallable, Category = "Stats")
 	int32 GetGold() const { return Gold; }
 
 	/** 현재 체력 비율 반환 (0.0 ~ 1.0) */

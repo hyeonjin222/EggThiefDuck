@@ -19,6 +19,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "HUD")
 	void UpdateHealth(float CurrentHP, float MaxHP);
 
+	/** 경험치 및 레벨 업데이트 이벤트 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "HUD")
+	void UpdateXP(int32 Level, float CurrentXP, float MaxXP);
+
 	/** 골드 업데이트 이벤트 */
 	UFUNCTION(BlueprintImplementableEvent, Category = "HUD")
 	void UpdateGold(int32 Amount);

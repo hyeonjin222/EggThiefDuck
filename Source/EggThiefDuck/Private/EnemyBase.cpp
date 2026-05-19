@@ -8,6 +8,8 @@
 #include "Engine/World.h"
 #include "DamageTextActor.h"
 #include "DropItemBase.h"
+#include "ExpItem.h"
+#include "GoldItem.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -46,6 +48,20 @@ AEnemyBase::AEnemyBase()
 	HealthBarWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f)); // 머리 위
 	HealthBarWidget->SetWidgetSpace(EWidgetSpace::Screen); // 항상 카메라 정면
 	HealthBarWidget->SetDrawAtDesiredSize(true);
+
+	// 4. 기본 드롭 테이블 설정 (경험치 아이템)
+	FItemDropRecord DefaultExpDrop;
+	DefaultExpDrop.ItemClass = AExpItem::StaticClass();
+	DefaultExpDrop.DropChance = 0.8f; // 80% 확률
+	DefaultExpDrop.DropCount = 1;
+	DropTable.Add(DefaultExpDrop);
+
+	// 5. 기본 드롭 테이블 설정 (골드 아이템)
+	FItemDropRecord DefaultGoldDrop;
+	DefaultGoldDrop.ItemClass = AGoldItem::StaticClass();
+	DefaultGoldDrop.DropChance = 0.3f; // 30% 확률
+	DefaultGoldDrop.DropCount = 1;
+	DropTable.Add(DefaultGoldDrop);
 }
 
 void AEnemyBase::BeginPlay()

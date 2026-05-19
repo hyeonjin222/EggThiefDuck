@@ -27,6 +27,14 @@ void ADuckPlayerController::UpdateHUDHealth(float CurrentHP, float MaxHP)
 	}
 }
 
+void ADuckPlayerController::UpdateHUDXP(int32 Level, float CurrentXP, float MaxXP)
+{
+	if (MainHUDWidget)
+	{
+		MainHUDWidget->UpdateXP(Level, CurrentXP, MaxXP);
+	}
+}
+
 void ADuckPlayerController::UpdateHUDGold(int32 Amount)
 {
 	if (MainHUDWidget)
