@@ -21,6 +21,7 @@ class EGGTHIEFDUCK_API UUpgradeScreenWidget : public UUserWidget
 
 public:
 	/** UI 초기화 및 데이터 설정 */
+	UFUNCTION(BlueprintCallable, Category = "Upgrade")
 	void InitUpgradeScreen(const TArray<UUpgradeDataAsset*>& Options);
 
 protected:

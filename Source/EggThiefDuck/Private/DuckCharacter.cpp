@@ -16,6 +16,7 @@
 #include "Data/UpgradeDataAsset.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "Framework/Application/SlateApplication.h"
 
 ADuckCharacter::ADuckCharacter()
 {
@@ -385,14 +386,23 @@ void ADuckCharacter::SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade)
 		ApplyUpgrade(SelectedUpgrade);
 	}
 
-	// 게임 일시 정지 해제
+	// 1. 게임 일시 정지 해제
 	UGameplayStatics::SetGamePaused(GetWorld(), false);
 
-	// 입력 모드 복구
+	// 2. 입력 모드 복구 및 마우스 설정 (트윈스틱 슈팅 최적화)
 	if (APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
-		FInputModeGameOnly InputMode;
+		FInputModeGameAndUI InputMode;
+		// 마우스 캡처 시에도 커서를 숨기지 않음 (중요!)
+		InputMode.SetHideCursorDuringCapture(false);
+		// 마우스를 뷰포트에 가두지 않거나 게임 설정에 따름
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		
 		PC->SetInputMode(InputMode);
+		PC->bShowMouseCursor = true;
+		
+		// 슬레이트(UI) 레벨에서도 포커스를 게임 뷰포트로 강제 이동
+		FSlateApplication::Get().SetAllUserFocusToGameViewport();
 	}
 }
 

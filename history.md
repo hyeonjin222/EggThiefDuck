@@ -31,9 +31,12 @@
 - **레벨업 및 흐름 제어:**
   - `LevelUp()`: 경험치 가득 찰 시 게임 일시 정지(`SetGamePaused`), 마우스 활성화, 입력 모드 전환 및 랜덤 3종 업그레이드 추출 로직 구현.
   - `OnShowUpgradeScreen`: 블루프린트 UI에 데이터를 넘겨주기 위한 C++ 이벤트 정의.
+  - `SelectUpgrade()`: 선택된 데이터를 적용하고 게임을 재개하며, 트윈스틱 슈팅을 위한 입력 모드(`GameAndUI`) 및 마우스 포커스 복구 로직 구현.
   - `ApplyUpgrade()`: 선택된 데이터에 따라 실제 캐릭터 스탯 및 컴포넌트 상태를 업데이트하고 나이아가라(Niagara) VFX 재생.
+- **C++ 기반 UI 시스템 구축:**
+  - `UUpgradeScreenWidget`: `BindWidget`을 사용하여 블루프린트의 텍스트, 이미지, 버튼을 C++과 직접 연결하고 데이터 바인딩 및 클릭 로직을 코드로 처리.
 - **프로젝트 설정 업데이트:**
-  - `EggThiefDuck.Build.cs`: 시각 효과 처리를 위해 `Niagara` 모듈 의존성 추가.
+  - `EggThiefDuck.Build.cs`: 시각 효과 및 UI 포커스 처리를 위해 `Niagara`, `Slate`, `SlateCore` 모듈 의존성 추가.
 
 ### 2026-05-19 (Bug Fix)
 - **사망 상태 유지 시스템 개선:**
