@@ -6,6 +6,9 @@
 #include "Blueprint/UserWidget.h"
 #include "MainHUDWidget.generated.h"
 
+class UProgressBar;
+class UTextBlock;
+
 /**
  * 게임의 메인 HUD 위젯 베이스 클래스
  */
@@ -30,4 +33,12 @@ public:
 	/** 시간 업데이트 이벤트 */
 	UFUNCTION(BlueprintImplementableEvent, Category = "HUD")
 	void UpdateTime(int32 Day, float Hour);
+
+protected:
+	/** --- UI 컴포넌트 바인딩 --- */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UProgressBar> ProgressBar_XP;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UTextBlock> Text_Level;
 };

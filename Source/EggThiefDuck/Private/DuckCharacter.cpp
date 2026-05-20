@@ -344,11 +344,14 @@ void ADuckCharacter::LevelUp()
 	Level++;
 	ExpToNextLevel *= 1.2f;
 
+	// HUD 즉시 갱신 (레벨 숫자 반영)
+	RefreshHUD();
+
 	// 1. 게임 일시 정지
 	UGameplayStatics::SetGamePaused(GetWorld(), true);
 
 	// 2. 마우스 커서 활성화 및 입력 모드 변경
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(GetController()))
 	{
 		PC->bShowMouseCursor = true;
 		FInputModeGameAndUI InputMode;
@@ -461,7 +464,7 @@ void ADuckCharacter::SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade)
 	UGameplayStatics::SetGamePaused(GetWorld(), false);
 
 	// 2. 입력 모드 복구 및 마우스 설정 (트윈스틱 슈팅 최적화)
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(GetController()))
 	{
 		FInputModeGameAndUI InputMode;
 		// 마우스 캡처 시에도 커서를 숨기지 않음 (중요!)
