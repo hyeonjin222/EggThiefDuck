@@ -31,7 +31,7 @@ void UDuckAnimInstance::NativeUpdateAnimation(float DeltaTime)
 
 	// 2. 이동 방향 계산 (몸이 바라보는 방향 기준 상대적 이동 방향)
 	// KismetAnimationLibrary를 사용하여 -180 ~ 180도 사이의 방향값을 구함
-	Direction = CalculateDirection(Velocity, DuckCharacter->GetActorRotation());
+	Direction = UKismetAnimationLibrary::CalculateDirection(Velocity, DuckCharacter->GetActorRotation());
 
 	// 3. 사격(조준) 상태 가져오기
 	if (UDuckCombatComponent* Combat = DuckCharacter->GetCombatComponent())

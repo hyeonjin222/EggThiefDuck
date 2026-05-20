@@ -5,6 +5,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/Button.h"
+#include "Components/BackgroundBlur.h"
 #include "Data/UpgradeDataAsset.h"
 #include "DuckCharacter.h"
 #include "Kismet/GameplayStatics.h"
@@ -12,6 +13,12 @@
 void UUpgradeScreenWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// 블러 강도 초기 설정 (에디터에서 수정 가능하도록 기본값 부여)
+	if (BG_Blur)
+	{
+		BG_Blur->SetBlurStrength(15.0f);
+	}
 
 	// 버튼 클릭 이벤트 바인딩
 	if (Button_Upgrade_0) Button_Upgrade_0->OnClicked.AddDynamic(this, &UUpgradeScreenWidget::OnUpgradeSelected_0);

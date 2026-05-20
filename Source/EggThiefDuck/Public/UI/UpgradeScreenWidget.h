@@ -9,6 +9,7 @@
 class UTextBlock;
 class UImage;
 class UButton;
+class UBackgroundBlur;
 class UUpgradeDataAsset;
 
 /**
@@ -28,6 +29,10 @@ protected:
 	virtual void NativeConstruct() override;
 
 	/** --- UI 컴포넌트 바인딩 (BP의 위젯 이름과 일치해야 함) --- */
+
+	// 배경 블러
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UBackgroundBlur> BG_Blur;
 
 	// 카드 1
 	UPROPERTY(meta = (BindWidget))

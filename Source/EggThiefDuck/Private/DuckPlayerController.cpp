@@ -14,7 +14,7 @@ void ADuckPlayerController::BeginPlay()
 		MainHUDWidget = CreateWidget<UMainHUDWidget>(this, MainHUDClass);
 		if (MainHUDWidget)
 		{
-			MainHUDWidget->AddToViewport();
+			MainHUDWidget->AddToViewport(100); // 블러보다 위에 그리기 위해 높은 우선순위 부여
 		}
 	}
 }

@@ -17,6 +17,9 @@ UDuckCombatComponent::UDuckCombatComponent()
 void UDuckCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 최초 설정된 연사력을 기준값으로 저장
+	BaseFireRate = FireRate;
 }
 
 void UDuckCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -101,35 +104,74 @@ void UDuckCombatComponent::FireProjectile()
 	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
 	if (OwnerCharacter && ProjectileClass)
 	{
-		float SpreadAngle = 10.0f; // 탄퍼짐 각도
-		float StartYaw = -(MultiShotCount - 1) * SpreadAngle * 0.5f;
+		// --- 변이 시너지 파라미터 계산 ---
+		float FinalSpeed = DefaultProjectileSpeed * (1.0f + ProjectileSpeedBonus);
+		float FinalLifeSpan = DefaultLifeSpan * (1.0f + RangeBonus); // [수정] 사거리 보너스
+		float FinalSpreadAngle = 10.0f + SpreadAngleBonus;
+		FVector FinalScale = FVector(1.0f + ProjectileSizeBonus); // [수정] 크기 보너스
+
+		if (bSniperEnabled)
+		{
+			FinalSpeed *= 2.0f;
+			FinalLifeSpan = SniperLifeSpan;
+			FinalSpreadAngle = 0.5f;
+			FinalScale *= FVector(3.0f, 0.2f, 0.2f);
+		}
+		else if (bShotgunEnabled)
+		{
+			FinalLifeSpan *= 0.15f; // 샷건은 기본 사거리의 15% 수준 (짧음)
+			FinalSpreadAngle = FMath::Max(30.0f, FinalSpreadAngle);
+			FinalScale *= 1.5f;
+		}
+		else if (bFlamethrowerEnabled)
+		{
+			FinalSpeed = FlamethrowerProjectileSpeed;
+			FinalLifeSpan = FlamethrowerLifeSpan;
+			FinalSpreadAngle = 40.0f;
+			FinalScale *= 2.5f;
+		}
+
+		float StartYaw = -(MultiShotCount - 1) * FinalSpreadAngle * 0.5f;
 
 		for (int32 i = 0; i < MultiShotCount; ++i)
 		{
 			FVector SpawnLocation = OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorForwardVector() * 100.f;
 			FRotator SpawnRotation = OwnerCharacter->GetActorRotation();
-			SpawnRotation.Yaw += StartYaw + (i * SpreadAngle);
+			SpawnRotation.Yaw += StartYaw + (i * FinalSpreadAngle);
 
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.Owner = OwnerCharacter;
 			SpawnParams.Instigator = OwnerCharacter;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 			AEggProjectile* Projectile = GetWorld()->SpawnActor<AEggProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
 			if (Projectile)
 			{
-				// 캐릭터 스탯 및 업그레이드 효과 전달
-				Projectile->SetDamage(OwnerCharacter->GetBaseDamage());
+				// 변이된 스탯 적용
+				Projectile->SetSpeed(FinalSpeed);
+				Projectile->SetLifeSpan(FinalLifeSpan);
+				Projectile->SetActorScale3D(FinalScale);
+
+				// [수정] 시너지 효과 및 세부 보너스 전달
+				Projectile->SetDamage(OwnerCharacter->GetCurrentAttackDamage());
+				Projectile->SetKnockbackBonus(KnockbackBonus);
+				Projectile->SetExplosionRadiusBonus(ExplosionRadiusBonus);
+				
 				Projectile->SetPiercing(bPiercingEnabled);
 				Projectile->SetExplosive(bExplosiveEnabled);
 				
+				// 등록된 모든 트레일 VFX 적용
+				for (UNiagaraSystem* TrailVFX : ProjectileTrailVFXs)
+				{
+					Projectile->AddTrailVFX(TrailVFX);
+				}
+
 				Projectile->FireInDirection(SpawnRotation.Vector());
 			}
 		}
 
-		// 게이지 소모 (1회 발사 시퀀스당 1번만 소모)
+		// 게이지 소모
 		CurrentEggGauge -= GaugeCostPerShot;
-
-		// 클릭 보장 의사 소모
 		bWantsToFire = false;
 	}
 }
@@ -138,30 +180,87 @@ void UDuckCombatComponent::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 {
 	if (!Upgrade) return;
 
-	switch (Upgrade->UpgradeType)
+	// 발사체 트레일 VFX 추가
+	if (Upgrade->ProjectileTrailVFX)
 	{
-	case EUpgradeType::Stat_FireRate:
-		// 연사 속도는 낮을수록 빠름 (최소 0.05초 제한)
-		FireRate = FMath::Max(0.05f, FireRate - Upgrade->Value);
-		break;
-	case EUpgradeType::Stat_GaugeMax:
-		MaxEggGauge += Upgrade->Value;
-		CurrentEggGauge = FMath::Min(MaxEggGauge, CurrentEggGauge + Upgrade->Value);
-		break;
-	case EUpgradeType::Stat_GaugeRecovery:
-		GaugeRecoveryRate += Upgrade->Value;
-		break;
-	case EUpgradeType::Mech_MultiShot:
-		MultiShotCount += FMath::RoundToInt(Upgrade->Value);
-		break;
-	case EUpgradeType::Mech_Piercing:
-		bPiercingEnabled = true;
-		break;
-	case EUpgradeType::Mech_Explosive:
-		bExplosiveEnabled = true;
-		break;
-	default:
-		break;
+		AddProjectileTrailVFX(Upgrade->ProjectileTrailVFX);
+	}
+
+	// [신규] 모든 효과 순회하며 적용
+	for (const FUpgradeEffect& Effect : Upgrade->Effects)
+	{
+		switch (Effect.Type)
+		{
+		case EUpgradeType::Stat_FireRate:
+			AttackSpeedBonus += Effect.Value;
+			FireRate = FMath::Max(0.05f, BaseFireRate / (1.0f + AttackSpeedBonus));
+			break;
+
+		case EUpgradeType::Stat_ProjectileSpeed:
+			ProjectileSpeedBonus += Effect.Value;
+			break;
+
+		case EUpgradeType::Stat_SpreadAngle:
+			SpreadAngleBonus += Effect.Value;
+			break;
+
+		case EUpgradeType::Stat_Knockback:
+			KnockbackBonus += Effect.Value;
+			break;
+
+		case EUpgradeType::Stat_Range:
+			RangeBonus += Effect.Value;
+			break;
+
+		case EUpgradeType::Stat_ProjectileSize:
+			ProjectileSizeBonus += Effect.Value;
+			break;
+
+		case EUpgradeType::Stat_ExplosionRadius:
+			ExplosionRadiusBonus += Effect.Value;
+			break;
+
+		case EUpgradeType::Stat_GaugeMax:
+			MaxEggGauge += Effect.Value;
+			CurrentEggGauge = FMath::Min(MaxEggGauge, CurrentEggGauge + Effect.Value);
+			break;
+
+		case EUpgradeType::Stat_GaugeRecovery:
+			GaugeRecoveryRate += Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Mod_MachineGun:
+			bMachineGunEnabled = true;
+			// 기관총은 기본 연사 속도를 높여줌 (예: 보너스 50% 즉시 추가)
+			AttackSpeedBonus += 0.5f;
+			FireRate = FMath::Max(0.05f, BaseFireRate / (1.0f + AttackSpeedBonus));
+			break;
+
+		case EUpgradeType::Weapon_Mod_Shotgun:
+			bShotgunEnabled = true;
+			// 샷건 획득 시 발사 수 즉시 3발로 증가 (기본값)
+			MultiShotCount = FMath::Max(MultiShotCount, 3);
+			break;
+
+		case EUpgradeType::Weapon_Mod_Piercing:
+			bPiercingEnabled = true;
+			break;
+
+		case EUpgradeType::Weapon_Mod_Explosive:
+			bExplosiveEnabled = true;
+			break;
+
+		case EUpgradeType::Weapon_Mod_Sniper:
+			bSniperEnabled = true;
+			break;
+
+		case EUpgradeType::Weapon_Mod_Flamethrower:
+			bFlamethrowerEnabled = true;
+			break;
+
+		default:
+			break;
+		}
 	}
 }
 
@@ -183,6 +282,14 @@ void UDuckCombatComponent::RefillGauge(float Amount)
 	{
 		GetWorld()->GetTimerManager().ClearTimer(OverheatTimerHandle);
 		EndOverheat();
+	}
+}
+
+void UDuckCombatComponent::AddProjectileTrailVFX(UNiagaraSystem* VFX)
+{
+	if (VFX && !ProjectileTrailVFXs.Contains(VFX))
+	{
+		ProjectileTrailVFXs.Add(VFX);
 	}
 }
 

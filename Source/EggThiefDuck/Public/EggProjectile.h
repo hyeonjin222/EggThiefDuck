@@ -29,11 +29,23 @@ public:
 	/** 데미지 설정 */
 	void SetDamage(float InDamage) { Damage = InDamage; }
 
+	/** 넉백 보너스 설정 */
+	void SetKnockbackBonus(float InBonus) { KnockbackBonus = InBonus; }
+
+	/** 폭발 범위 보너스 설정 */
+	void SetExplosionRadiusBonus(float InBonus) { ExplosionRadiusBonus = InBonus; }
+
 	/** 관통 여부 설정 */
 	void SetPiercing(bool bInPiercing) { bIsPiercing = bInPiercing; }
 
 	/** 폭발 여부 설정 */
 	void SetExplosive(bool bInExplosive) { bIsExplosive = bInExplosive; }
+
+	/** 속도 설정 */
+	void SetSpeed(float InSpeed);
+
+	/** VFX 추가 */
+	void AddTrailVFX(class UNiagaraSystem* VFX);
 
 	/** --- 컴포넌트 (BoxComp로 이름 통일 및 노출) --- */
 
@@ -65,4 +77,8 @@ private:
 
 	/** 폭발 상태 */
 	bool bIsExplosive = false;
+
+	/** 보너스 스탯들 */
+	float KnockbackBonus = 0.0f;
+	float ExplosionRadiusBonus = 0.0f;
 };

@@ -16,6 +16,7 @@
 #include "Data/UpgradeDataAsset.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "NiagaraComponent.h"
 #include "Framework/Application/SlateApplication.h"
 
 ADuckCharacter::ADuckCharacter()
@@ -356,27 +357,97 @@ void ADuckCharacter::LevelUp()
 
 	// 3. 업그레이드 후보군 랜덤 선택 (3개)
 	TArray<UUpgradeDataAsset*> Options;
-	TArray<TObjectPtr<UUpgradeDataAsset>> Pool = UpgradePool;
+	TArray<UUpgradeDataAsset*> CandidatePool;
 
-	// 최대 레벨에 도달하지 않은 업그레이드만 필터링
-	Pool.RemoveAll([this](const TObjectPtr<UUpgradeDataAsset>& Asset) {
-		if (!Asset) return true;
-		const int32* CurrentLvl = AppliedUpgradeLevels.Find(Asset->UpgradeID);
-		return CurrentLvl && *CurrentLvl >= Asset->MaxLevel;
-	});
+	// 매 5레벨 마다 무기 강제 등장 여부 확인 (2, 3, 4레벨은 스탯, 5레벨은 무기)
+	bool bIsMilestoneLevel = (Level % 5 == 0);
 
-	// 랜덤하게 3개 추출
-	while (Options.Num() < 3 && Pool.Num() > 0)
+	UE_LOG(LogTemp, Warning, TEXT("--- Level Up Debug Start (Level: %d, Milestone: %s) ---"), Level, bIsMilestoneLevel ? TEXT("TRUE") : TEXT("FALSE"));
+
+	for (UUpgradeDataAsset* Asset : UpgradePool)
 	{
-		int32 Index = FMath::RandRange(0, Pool.Num() - 1);
-		Options.Add(Pool[Index]);
-		Pool.RemoveAt(Index);
+		if (!Asset) continue;
+
+		// ID가 비어있으면 에셋 이름으로 자동 할당 (중요: 중복 방지)
+		FName FinalID = Asset->UpgradeID.IsNone() ? Asset->GetFName() : Asset->UpgradeID;
+		bool bOwned = AppliedUpgradeLevels.Contains(FinalID);
+
+		if (bIsMilestoneLevel)
+		{
+			// 마일스톤 레벨: 아직 '보유하지 않은' 새로운 무기만 후보군에 추가
+			if (Asset->bIsWeapon && !bOwned)
+			{
+				CandidatePool.Add(Asset);
+			}
+		}
+		else
+		{
+			// 일반 레벨: 
+			// 1. 무기가 아닌 스탯 카드(bIsWeapon=false)
+			// 2. 이미 보유하고 있는 무기의 강화 카드(bOwned=true)
+			if (!Asset->bIsWeapon || bOwned)
+			{
+				// 최대 레벨 도달 확인
+				const int32* CurrentLvlPtr = AppliedUpgradeLevels.Find(FinalID);
+				int32 CurrentLvl = CurrentLvlPtr ? *CurrentLvlPtr : 0;
+				if (CurrentLvl >= Asset->MaxLevel) continue;
+
+				// 선행 요구 사항 확인
+				if (!Asset->RequiredUpgradeID.IsNone())
+				{
+					const int32* ReqLvlPtr = AppliedUpgradeLevels.Find(Asset->RequiredUpgradeID);
+					int32 ReqLvl = ReqLvlPtr ? *ReqLvlPtr : 0;
+					if (ReqLvl < Asset->RequiredLevel) continue;
+				}
+
+				CandidatePool.Add(Asset);
+			}
+		}
 	}
 
-	// 4. UI 이벤트 호출 (블루프린트에서 UI 생성 및 데이터 전달)
-	OnShowUpgradeScreen(Options);
+	// [Fallback] 마일스톤 레벨인데 뽑을 새로운 무기가 하나도 없다면, 일반 업그레이드라도 보여줌
+	if (bIsMilestoneLevel && CandidatePool.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No new weapons available for Milestone! Falling back to normal upgrades."));
+		for (UUpgradeDataAsset* Asset : UpgradePool)
+		{
+			if (!Asset || Asset->bIsWeapon) continue;
+			
+			FName FinalID = Asset->UpgradeID.IsNone() ? Asset->GetFName() : Asset->UpgradeID;
+			const int32* CurrentLvlPtr = AppliedUpgradeLevels.Find(FinalID);
+			int32 CurrentLvl = CurrentLvlPtr ? *CurrentLvlPtr : 0;
+			if (CurrentLvl >= Asset->MaxLevel) continue;
 
-	UE_LOG(LogTemp, Warning, TEXT("Level Up! Current Level: %d"), Level);
+			CandidatePool.AddUnique(Asset);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Candidate Pool Size: %d"), CandidatePool.Num());
+
+	// 가중치 기반 랜덤 선택 (3개 추출)
+	while (Options.Num() < 3 && CandidatePool.Num() > 0)
+	{
+		float TotalWeight = 0.0f;
+		for (UUpgradeDataAsset* Asset : CandidatePool) TotalWeight += Asset->Weight;
+
+		float RandomValue = FMath::FRandRange(0.0f, TotalWeight);
+		float WeightSum = 0.0f;
+
+		for (int32 i = 0; i < CandidatePool.Num(); ++i)
+		{
+			WeightSum += CandidatePool[i]->Weight;
+			if (RandomValue <= WeightSum)
+			{
+				Options.Add(CandidatePool[i]);
+				CandidatePool.RemoveAt(i);
+				break;
+			}
+		}
+	}
+
+	// 4. UI 이벤트 호출
+	OnShowUpgradeScreen(Options);
+	UE_LOG(LogTemp, Warning, TEXT("--- Level Up Debug End ---"));
 }
 
 void ADuckCharacter::SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade)
@@ -410,50 +481,92 @@ void ADuckCharacter::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 {
 	if (!Upgrade) return;
 
+	// ID가 비어있으면 에셋 이름으로 자동 할당 (LevelUp 로직과 일치시킴)
+	FName FinalID = Upgrade->UpgradeID.IsNone() ? Upgrade->GetFName() : Upgrade->UpgradeID;
+
 	// 1. 업그레이드 단계 기록
-	int32& CurrentLvl = AppliedUpgradeLevels.FindOrAdd(Upgrade->UpgradeID);
+	int32& CurrentLvl = AppliedUpgradeLevels.FindOrAdd(FinalID);
 	CurrentLvl++;
 
-	UE_LOG(LogTemp, Warning, TEXT("Applying Upgrade: %s (Level %d)"), *Upgrade->UpgradeName.ToString(), CurrentLvl);
+	UE_LOG(LogTemp, Warning, TEXT("Applying Upgrade: %s (Level %d, ID: %s)"), *Upgrade->UpgradeName.ToString(), CurrentLvl, *FinalID.ToString());
 
-	// 2. 스탯 및 기능 적용
-	switch (Upgrade->UpgradeType)
+	// 2. 모든 효과 순회하며 적용
+	for (const FUpgradeEffect& Effect : Upgrade->Effects)
 	{
-	case EUpgradeType::Stat_MaxHealth:
-		MaxHealth += Upgrade->Value;
-		CurrentHealth = FMath::Clamp(CurrentHealth + Upgrade->Value, 0.f, MaxHealth);
-		break;
-	case EUpgradeType::Stat_MoveSpeed:
-		MoveSpeed += Upgrade->Value;
-		GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
-		break;
-	case EUpgradeType::Stat_AttackDamage:
-		BaseDamage += Upgrade->Value;
-		break;
-	case EUpgradeType::Stat_FireRate:
-	case EUpgradeType::Stat_GaugeMax:
-	case EUpgradeType::Stat_GaugeRecovery:
-	case EUpgradeType::Mech_MultiShot:
-	case EUpgradeType::Mech_Piercing:
-	case EUpgradeType::Mech_Explosive:
-		if (CombatComp) CombatComp->ApplyUpgrade(Upgrade);
-		break;
-	case EUpgradeType::Special_OrbitingEgg:
-	case EUpgradeType::Special_EggMine:
-		if (Upgrade->SpecialActorClass)
+		switch (Effect.Type)
 		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.Owner = this;
-			GetWorld()->SpawnActor<AActor>(Upgrade->SpecialActorClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+		case EUpgradeType::Stat_MaxHealth:
+			MaxHealth += Effect.Value; // 체력은 퍼센트가 아닌 절대치로 일단 유지 (필요시 변경 가능)
+			CurrentHealth = FMath::Clamp(CurrentHealth + Effect.Value, 0.f, MaxHealth);
+			break;
+
+		case EUpgradeType::Stat_MoveSpeed:
+			MoveSpeed += Effect.Value;
+			GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+			break;
+
+		case EUpgradeType::Stat_AttackDamage:
+			// 공격력 보너스 누적 (예: 0.2면 20% 증가)
+			AttackDamageBonus += Effect.Value;
+			UE_LOG(LogTemp, Warning, TEXT("Attack Damage Bonus: %.1f%%, Total Damage: %.2f"), AttackDamageBonus * 100.f, GetCurrentAttackDamage());
+			break;
+
+		// 전투 관련 모든 강화(주무기 변이 포함)는 CombatComp에서 처리
+		case EUpgradeType::Stat_FireRate:
+		case EUpgradeType::Stat_ProjectileSpeed:
+		case EUpgradeType::Stat_SpreadAngle:
+		case EUpgradeType::Stat_GaugeMax:
+		case EUpgradeType::Stat_GaugeRecovery:
+		case EUpgradeType::Weapon_Mod_MachineGun:
+		case EUpgradeType::Weapon_Mod_Shotgun:
+		case EUpgradeType::Weapon_Mod_Piercing:
+		case EUpgradeType::Weapon_Mod_Explosive:
+		case EUpgradeType::Weapon_Mod_Sniper:
+		case EUpgradeType::Weapon_Mod_Flamethrower:
+			if (CombatComp) CombatComp->ApplyUpgrade(Upgrade);
+			break;
+
+		// 패시브 무기 설치
+		case EUpgradeType::Weapon_Passive_Orbit:
+		case EUpgradeType::Weapon_Passive_AutoBomb:
+		case EUpgradeType::Weapon_Passive_Molotov:
+			if (Upgrade->SpecialActorClass)
+			{
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.Owner = this;
+				GetWorld()->SpawnActor<AActor>(Upgrade->SpecialActorClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+			}
+			break;
 		}
-		break;
 	}
 
 	// 3. 연출 (VFX & Sound)
+	
+	// 일회성 획득 VFX
 	if (Upgrade->UpgradeVFX)
 	{
 		PlayUpgradeVFX(Upgrade->UpgradeVFX);
 	}
+
+	// 플레이어 지속 VFX (오라 등)
+	if (Upgrade->PlayerPersistentVFX)
+	{
+		// 이미 같은 ID의 VFX가 있다면 제거 후 다시 생성 (업그레이드 단계별 시각적 변화 대응)
+		if (TObjectPtr<UNiagaraComponent>* OldVFX = PersistentVFXComponents.Find(FinalID))
+		{
+			if (*OldVFX) (*OldVFX)->DestroyComponent();
+		}
+
+		UNiagaraComponent* NewVFXComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
+			Upgrade->PlayerPersistentVFX, GetMesh(), NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+		
+		if (NewVFXComp)
+		{
+			PersistentVFXComponents.Add(FinalID, NewVFXComp);
+		}
+	}
+
+	// 발사체 트레일 VFX는 CombatComp에서 처리 (ApplyUpgrade 내부에서 이미 호출됨)
 	
 	if (Upgrade->UpgradeSound)
 	{

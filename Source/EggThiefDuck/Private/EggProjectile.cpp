@@ -6,6 +6,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "EnemyBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
 AEggProjectile::AEggProjectile()
 {
@@ -21,10 +23,10 @@ AEggProjectile::AEggProjectile()
 	BoxComp->BodyInstance.bUseCCD = true;
 	BoxComp->SetNotifyRigidBodyCollision(true);
 
-	// 2. 반응 설정: 바닥(Static/Dynamic)과 적은 막고, 아이템은 통과
+	// 2. 반응 설정: 바닥(Static)과 적(Pawn)은 막고, 달걀끼리(WorldDynamic)는 통과
 	BoxComp->SetCollisionResponseToAllChannels(ECR_Ignore);
 	BoxComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-	BoxComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block); // 환경 바닥 대응
+	BoxComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore); // 달걀끼리 충돌 방지 (중요!)
 	BoxComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 	BoxComp->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap); // 아이템 통과
 
@@ -60,12 +62,32 @@ void AEggProjectile::FireInDirection(const FVector& ShootDirection)
 	ProjectileMovement->Velocity = ShootDirection * ProjectileMovement->InitialSpeed;
 }
 
+void AEggProjectile::SetSpeed(float InSpeed)
+{
+	if (ProjectileMovement)
+	{
+		ProjectileMovement->InitialSpeed = InSpeed;
+		ProjectileMovement->MaxSpeed = InSpeed;
+	}
+}
+
+void AEggProjectile::AddTrailVFX(UNiagaraSystem* VFX)
+{
+	if (VFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAttached(VFX, RootComponent, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+	}
+}
+
 void AEggProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	// 이미 무언가에 부딪혔다면 중복 처리 방지
-	if (bHit) return;
+	// 이미 무언가에 부딪혔거나, 자기 자신 또는 다른 달걀 발사체와 부딪혔다면 무시
+	if (bHit || !OtherActor || OtherActor == this || OtherActor->IsA<AEggProjectile>()) return;
 
-	if ((OtherActor != nullptr) && (OtherActor != this) && !HitActors.Contains(OtherActor))
+	// 소유자(오리)와 부딪힌 경우도 무시
+	if (OtherActor == GetOwner()) return;
+
+	if (!HitActors.Contains(OtherActor))
 	{
 		AEnemyBase* Enemy = Cast<AEnemyBase>(OtherActor);
 		if (Enemy)
@@ -73,7 +95,8 @@ void AEggProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor
 			// 관통 중복 히트 방지를 위해 기록
 			HitActors.Add(OtherActor);
 
-			FVector ImpactImpulse = ProjectileMovement->Velocity * 0.4f;
+			// [수정] 넉백 보너스 적용
+			FVector ImpactImpulse = ProjectileMovement->Velocity * (0.4f + KnockbackBonus);
 			ImpactImpulse.Z = 200.0f;
 			Enemy->ApplyKnockback(ImpactImpulse);
 
@@ -92,10 +115,11 @@ void AEggProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor
 			bHit = true;
 		}
 
-		// 폭발 강화가 되어 있으면 주변에 추가 데미지
+		// [수정] 폭발 범위 보너스 적용
 		if (bIsExplosive && (bHit || Enemy))
 		{
-			UGameplayStatics::ApplyRadialDamage(this, Damage * 0.5f, GetActorLocation(), 200.0f, UDamageType::StaticClass(), TArray<AActor*>(), this);
+			float FinalRadius = 200.0f * (1.0f + ExplosionRadiusBonus);
+			UGameplayStatics::ApplyRadialDamage(this, Damage * 0.5f, GetActorLocation(), FinalRadius, UDamageType::StaticClass(), TArray<AActor*>(), this);
 			// TODO: 폭발 VFX/SFX 재생 로직 추가 가능
 		}
 

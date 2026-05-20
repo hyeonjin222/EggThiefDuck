@@ -47,6 +47,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Upgrades")
 	void SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade);
 
+	/** 실제 업그레이드 적용 로직 (외부 컴포넌트에서도 호출 가능하도록 public) */
+	void ApplyUpgrade(UUpgradeDataAsset* Upgrade);
+
+	/** 스탯 보너스 직접 추가 함수들 (C++ 로직용) */
+	void AddAttackDamageBonus(float Amount) { AttackDamageBonus += Amount; }
+	void AddAttackSpeedBonus(float Amount);
+
 protected:
 	/** 레벨업 시 업그레이드 화면 표시 이벤트 */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Upgrades")
@@ -108,6 +115,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats", meta = (AllowPrivateAccess = "true"))
 	float BaseDamage = 20.0f;
 
+	/** 누적 공격력 보너스 (0.1 = 10% 증가) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	float AttackDamageBonus = 0.0f;
+
 	/** 성장 시스템 (XP & Level) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
 	int32 Level = 1;
@@ -126,6 +137,10 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Upgrades", meta = (AllowPrivateAccess = "true"))
 	TMap<FName, int32> AppliedUpgradeLevels;
 
+	/** 플레이어에게 붙어있는 지속성 VFX 컴포넌트들 */
+	UPROPERTY()
+	TMap<FName, TObjectPtr<class UNiagaraComponent>> PersistentVFXComponents;
+
 	/** 재화 (Gold) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	int32 Gold = 0;
@@ -140,9 +155,6 @@ private:
 
 	/** 레벨업 로직 */
 	void LevelUp();
-
-	/** 실제 업그레이드 적용 로직 */
-	void ApplyUpgrade(UUpgradeDataAsset* Upgrade);
 
 	/** 업그레이드 VFX 재생 */
 	void PlayUpgradeVFX(UNiagaraSystem* VFX);
@@ -226,7 +238,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stats")
 	int32 GetGold() const { return Gold; }
 
-	/** 현재 공격력 반환 */
+	/** 현재 공격력 반환 (퍼센트 보너스 포함) */
+	UFUNCTION(BlueprintCallable, Category = "Stats")
+	float GetCurrentAttackDamage() const { return BaseDamage * (1.0f + AttackDamageBonus); }
+
+	/** 기본 공격력 반환 (기준값) */
 	UFUNCTION(BlueprintCallable, Category = "Stats")
 	float GetBaseDamage() const { return BaseDamage; }
 

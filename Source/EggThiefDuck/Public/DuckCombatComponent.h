@@ -36,6 +36,9 @@ public:
 	/** 업그레이드 적용 */
 	void ApplyUpgrade(class UUpgradeDataAsset* Upgrade);
 
+	/** 발사체에 적용될 나이아가라 이펙트 목록 추가 */
+	void AddProjectileTrailVFX(class UNiagaraSystem* VFX);
+
 private:
 	/** 발사 시도 (애니메이션 및 타이머 시작) */
 	void Fire();
@@ -61,6 +64,49 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float FireRate = 0.2f;
 
+	/** 기준 연사 속도 (최초값 저장용) */
+	float BaseFireRate;
+
+	/** 누적 공격 속도 보너스 (0.1 = 10% 증가) */
+	float AttackSpeedBonus = 0.0f;
+
+	/** 누적 투사체 속도 보너스 */
+	float ProjectileSpeedBonus = 0.0f;
+
+	/** 누적 탄퍼짐 각도 보너스 (기준 10도에서 가감) */
+	float SpreadAngleBonus = 0.0f;
+
+	/** 누적 넉백 보너스 */
+	float KnockbackBonus = 0.0f;
+
+	/** 누적 사거리(수명) 보너스 */
+	float RangeBonus = 0.0f;
+
+	/** 누적 투사체 크기 보너스 */
+	float ProjectileSizeBonus = 0.0f;
+
+	/** 누적 폭발 범위 보너스 */
+	float ExplosionRadiusBonus = 0.0f;
+
+	/** --- 변이 시너지 파라미터 (에디터 조절용) --- */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
+	float DefaultProjectileSpeed = 2500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
+	float SniperProjectileSpeed = 10000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
+	float FlamethrowerProjectileSpeed = 1500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
+	float DefaultLifeSpan = 3.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
+	float SniperLifeSpan = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
+	float FlamethrowerLifeSpan = 0.4f;
+
 	/** 달걀 게이지 관련 변수 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Gauge", meta = (AllowPrivateAccess = "true"))
 	float MaxEggGauge = 100.f;
@@ -83,6 +129,22 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Mech", meta = (AllowPrivateAccess = "true"))
 	bool bExplosiveEnabled = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Mech", meta = (AllowPrivateAccess = "true"))
+	bool bMachineGunEnabled = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Mech", meta = (AllowPrivateAccess = "true"))
+	bool bShotgunEnabled = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Mech", meta = (AllowPrivateAccess = "true"))
+	bool bSniperEnabled = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Mech", meta = (AllowPrivateAccess = "true"))
+	bool bFlamethrowerEnabled = false;
+
+	/** 발사체에 적용될 나이아가라 이펙트 목록 */
+	UPROPERTY()
+	TArray<TObjectPtr<class UNiagaraSystem>> ProjectileTrailVFXs;
 
 	/** 과열 상태 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Status", meta = (AllowPrivateAccess = "true"))
