@@ -27,6 +27,7 @@ enum class EUpgradeType : uint8
 	Stat_ExplosionRadius    UMETA(DisplayName = "Stat: Explosion Radius"),
 	Stat_GaugeMax           UMETA(DisplayName = "Stat: Max Egg Gauge"),
 	Stat_GaugeRecovery      UMETA(DisplayName = "Stat: Gauge Recovery"),
+	Stat_PiercingCount      UMETA(DisplayName = "Stat: Piercing Count"),
 
 	// --- 주무기 변이 (Option A 시너지 - 5레벨 무기 선택용) ---
 	Weapon_Mod_MachineGun   UMETA(DisplayName = "Weapon Mod: Machine Gun"),
@@ -54,7 +55,7 @@ struct FUpgradeEffect
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	EUpgradeType Type = EUpgradeType::Stat_AttackDamage;
 
-	/** 적용할 수치 (스탯은 퍼센트 비율, 카운트는 정수 등) */
+	/** 적용할 수치 (체력/게이지는 절대치, 공격력/연사력 등은 퍼센트 비율) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float Value = 0.0f;
 };

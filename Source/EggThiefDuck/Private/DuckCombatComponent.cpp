@@ -11,6 +11,8 @@ UDuckCombatComponent::UDuckCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 
+	MaxEggGauge = BaseMaxEggGauge;
+	GaugeRecoveryRate = BaseGaugeRecoveryRate;
 	CurrentEggGauge = MaxEggGauge;
 }
 
@@ -20,6 +22,11 @@ void UDuckCombatComponent::BeginPlay()
 
 	// 최초 설정된 연사력을 기준값으로 저장
 	BaseFireRate = FireRate;
+
+	// 최종 스탯 초기화
+	MaxEggGauge = BaseMaxEggGauge;
+	GaugeRecoveryRate = BaseGaugeRecoveryRate;
+	CurrentEggGauge = MaxEggGauge;
 }
 
 void UDuckCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -99,36 +106,61 @@ void UDuckCombatComponent::Fire()
 	}
 }
 
+void UDuckCombatComponent::UpdateFinalStats()
+{
+	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
+
+	// 공속 계산: (기본 * 무기배율) / (1 + 강화수치)
+	FireRate = FMath::Max(0.05f, (BaseFireRate * WeaponFireRateMultiplier) / (1.0f + AttackSpeedBonus));
+
+	// 게이지 계산: (기본 * 무기배율) * (1 + 강화수치)
+	float OldMax = MaxEggGauge;
+	MaxEggGauge = (BaseMaxEggGauge * WeaponMaxEggGaugeMultiplier) * (1.0f + MaxEggGaugeBonus);
+	GaugeRecoveryRate = (BaseGaugeRecoveryRate * WeaponGaugeRecoveryMultiplier) * (1.0f + GaugeRecoveryBonus);
+
+	// 관통 횟수 계산: (기본 + 보너스) * 무기배율
+	MaxPiercingCount = FMath::RoundToInt((BaseMaxPiercingCount + PiercingCountBonus) * WeaponPiercingCountMultiplier);
+	// 관통 모드가 활성화되어 있는데 횟수가 0이면 최소 1회 보장
+	if ((bPiercingEnabled || bSniperEnabled) && MaxPiercingCount <= 0)
+	{
+		MaxPiercingCount = 1;
+	}
+
+	// 최대치가 바뀌면 현재 게이지도 비율에 맞춰 보정 (또는 차이만큼 더해줌)
+	if (OldMax > 0.f)
+	{
+		CurrentEggGauge += (MaxEggGauge - OldMax);
+		CurrentEggGauge = FMath::Clamp(CurrentEggGauge, 0.f, MaxEggGauge);
+	}
+
+	// 캐릭터 무기 데미지/이속 배율 전달
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->UpdateMoveSpeed();
+	}
+	
+	UE_LOG(LogTemp, Log, TEXT("Combat Stats Recalculated - FireRate: %.3f, MaxGauge: %.1f, Piercing: %d"), 
+		FireRate, MaxEggGauge, MaxPiercingCount);
+}
+
 void UDuckCombatComponent::FireProjectile()
 {
 	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
 	if (OwnerCharacter && ProjectileClass)
 	{
-		// --- 변이 시너지 파라미터 계산 ---
-		float FinalSpeed = DefaultProjectileSpeed * (1.0f + ProjectileSpeedBonus);
-		float FinalLifeSpan = DefaultLifeSpan * (1.0f + RangeBonus); // [수정] 사거리 보너스
-		float FinalSpreadAngle = 10.0f + SpreadAngleBonus;
-		FVector FinalScale = FVector(1.0f + ProjectileSizeBonus); // [수정] 크기 보너스
+		// --- 변이 시너지 파라미터 최종 계산 ---
+		// 공식: (기본 * 무기배율) * (1 + 강화수치)
+		float FinalSpeed = (BaseProjectileSpeed * WeaponProjectileSpeedMultiplier) * (1.0f + ProjectileSpeedBonus);
+		float FinalLifeSpan = (BaseLifeSpan * WeaponRangeMultiplier) * (1.0f + RangeBonus);
+		FVector FinalScale = FVector(1.0f * WeaponProjectileSizeMultiplier) * (1.0f + ProjectileSizeBonus);
+		
+		// 확산 각도: 기본 무기 베이스에 보너스 더하기
+		float FinalSpreadAngle = WeaponSpreadAngleBase + SpreadAngleBonus;
 
+		// 저격총 특수 스케일 비율
 		if (bSniperEnabled)
 		{
-			FinalSpeed *= 2.0f;
-			FinalLifeSpan = SniperLifeSpan;
-			FinalSpreadAngle = 0.5f;
 			FinalScale *= FVector(3.0f, 0.2f, 0.2f);
-		}
-		else if (bShotgunEnabled)
-		{
-			FinalLifeSpan *= 0.15f; // 샷건은 기본 사거리의 15% 수준 (짧음)
-			FinalSpreadAngle = FMath::Max(30.0f, FinalSpreadAngle);
-			FinalScale *= 1.5f;
-		}
-		else if (bFlamethrowerEnabled)
-		{
-			FinalSpeed = FlamethrowerProjectileSpeed;
-			FinalLifeSpan = FlamethrowerLifeSpan;
-			FinalSpreadAngle = 40.0f;
-			FinalScale *= 2.5f;
 		}
 
 		float StartYaw = -(MultiShotCount - 1) * FinalSpreadAngle * 0.5f;
@@ -147,20 +179,20 @@ void UDuckCombatComponent::FireProjectile()
 			AEggProjectile* Projectile = GetWorld()->SpawnActor<AEggProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
 			if (Projectile)
 			{
-				// 변이된 스탯 적용
 				Projectile->SetSpeed(FinalSpeed);
 				Projectile->SetLifeSpan(FinalLifeSpan);
 				Projectile->SetActorScale3D(FinalScale);
 
-				// [수정] 시너지 효과 및 세부 보너스 전달
 				Projectile->SetDamage(OwnerCharacter->GetCurrentAttackDamage());
 				Projectile->SetKnockbackBonus(KnockbackBonus);
 				Projectile->SetExplosionRadiusBonus(ExplosionRadiusBonus);
 				
-				Projectile->SetPiercing(bPiercingEnabled);
+				// [수정] 계산된 관통 횟수 적용
+				Projectile->SetPiercing(MaxPiercingCount > 0);
+				Projectile->SetMaxPiercingCount(MaxPiercingCount);
+				
 				Projectile->SetExplosive(bExplosiveEnabled);
 				
-				// 등록된 모든 트레일 VFX 적용
 				for (UNiagaraSystem* TrailVFX : ProjectileTrailVFXs)
 				{
 					Projectile->AddTrailVFX(TrailVFX);
@@ -170,7 +202,6 @@ void UDuckCombatComponent::FireProjectile()
 			}
 		}
 
-		// 게이지 소모
 		CurrentEggGauge -= GaugeCostPerShot;
 		bWantsToFire = false;
 	}
@@ -180,20 +211,19 @@ void UDuckCombatComponent::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 {
 	if (!Upgrade) return;
 
-	// 발사체 트레일 VFX 추가
 	if (Upgrade->ProjectileTrailVFX)
 	{
 		AddProjectileTrailVFX(Upgrade->ProjectileTrailVFX);
 	}
 
-	// [신규] 모든 효과 순회하며 적용
+	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
+
 	for (const FUpgradeEffect& Effect : Upgrade->Effects)
 	{
 		switch (Effect.Type)
 		{
 		case EUpgradeType::Stat_FireRate:
 			AttackSpeedBonus += Effect.Value;
-			FireRate = FMath::Max(0.05f, BaseFireRate / (1.0f + AttackSpeedBonus));
 			break;
 
 		case EUpgradeType::Stat_ProjectileSpeed:
@@ -221,25 +251,62 @@ void UDuckCombatComponent::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 			break;
 
 		case EUpgradeType::Stat_GaugeMax:
-			MaxEggGauge += Effect.Value;
-			CurrentEggGauge = FMath::Min(MaxEggGauge, CurrentEggGauge + Effect.Value);
+			MaxEggGaugeBonus += Effect.Value;
 			break;
 
 		case EUpgradeType::Stat_GaugeRecovery:
-			GaugeRecoveryRate += Effect.Value;
+			GaugeRecoveryBonus += Effect.Value;
+			break;
+
+		case EUpgradeType::Stat_PiercingCount:
+			PiercingCountBonus += FMath::RoundToInt(Effect.Value);
 			break;
 
 		case EUpgradeType::Weapon_Mod_MachineGun:
 			bMachineGunEnabled = true;
-			// 기관총은 기본 연사 속도를 높여줌 (예: 보너스 50% 즉시 추가)
-			AttackSpeedBonus += 0.5f;
-			FireRate = FMath::Max(0.05f, BaseFireRate / (1.0f + AttackSpeedBonus));
+			WeaponFireRateMultiplier = 0.5f; // 공속 2배
+			WeaponMaxEggGaugeMultiplier = 2.0f; // 최대 탄약 2배
+			WeaponGaugeRecoveryMultiplier = 2.0f; // 탄약 회복속도 2배
+			if (OwnerCharacter) OwnerCharacter->WeaponDamageMultiplier = 0.7f; // 데미지 배율 0.7
+			WeaponSpreadAngleBase = 15.0f;
 			break;
 
 		case EUpgradeType::Weapon_Mod_Shotgun:
 			bShotgunEnabled = true;
-			// 샷건 획득 시 발사 수 즉시 3발로 증가 (기본값)
-			MultiShotCount = FMath::Max(MultiShotCount, 3);
+			// 샷건: 산탄 4개 발사
+			MultiShotCount = FMath::Max(MultiShotCount, 4);
+			// 공속 50% 감소 (간격 2배)
+			WeaponFireRateMultiplier = 2.0f;
+			// 데미지 30% 감소 (배율 0.7)
+			if (OwnerCharacter) OwnerCharacter->WeaponDamageMultiplier = 0.7f;
+			
+			WeaponRangeMultiplier = 0.15f; 
+			WeaponSpreadAngleBase = 30.0f; 
+			WeaponProjectileSizeMultiplier = 1.5f;
+			break;
+		case EUpgradeType::Weapon_Mod_Sniper:
+			bSniperEnabled = true;
+			bPiercingEnabled = false; // 관통 롤백
+			// 저격총: 공속 50% 감소 (간격 2.0배)
+			WeaponFireRateMultiplier = 2.0f;
+			// 데미지 2배 증가
+			if (OwnerCharacter) OwnerCharacter->WeaponDamageMultiplier = 2.0f;
+			// 투사체 속도 3배 증가
+			WeaponProjectileSpeedMultiplier = 3.0f;
+			// 관통 배율 초기화
+			WeaponPiercingCountMultiplier = 0.0f;
+
+			WeaponSpreadAngleBase = 0.0f;
+			break;
+
+		case EUpgradeType::Weapon_Mod_Flamethrower:
+			bFlamethrowerEnabled = true;
+			WeaponFireRateMultiplier = 0.2f;
+			WeaponProjectileSpeedMultiplier = 0.6f;
+			WeaponRangeMultiplier = 0.2f;
+			WeaponProjectileSizeMultiplier = 2.5f;
+			WeaponSpreadAngleBase = 40.0f;
+			if (OwnerCharacter) OwnerCharacter->WeaponDamageMultiplier = 0.3f;
 			break;
 
 		case EUpgradeType::Weapon_Mod_Piercing:
@@ -250,18 +317,12 @@ void UDuckCombatComponent::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 			bExplosiveEnabled = true;
 			break;
 
-		case EUpgradeType::Weapon_Mod_Sniper:
-			bSniperEnabled = true;
-			break;
-
-		case EUpgradeType::Weapon_Mod_Flamethrower:
-			bFlamethrowerEnabled = true;
-			break;
-
 		default:
 			break;
 		}
 	}
+
+	UpdateFinalStats();
 }
 
 void UDuckCombatComponent::UpdateEggGauge(float DeltaTime)

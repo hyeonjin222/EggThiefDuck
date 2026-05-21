@@ -38,6 +38,9 @@ public:
 	/** 관통 여부 설정 */
 	void SetPiercing(bool bInPiercing) { bIsPiercing = bInPiercing; }
 
+	/** 최대 관통 횟수 설정 */
+	void SetMaxPiercingCount(int32 InCount) { MaxPiercingCount = InCount; }
+
 	/** 폭발 여부 설정 */
 	void SetExplosive(bool bInExplosive) { bIsExplosive = bInExplosive; }
 
@@ -74,6 +77,9 @@ private:
 
 	/** 관통 상태 */
 	bool bIsPiercing = false;
+
+	/** 최대 관통 가능한 적 숫자 (0이면 관통 불가) */
+	int32 MaxPiercingCount = 0;
 
 	/** 폭발 상태 */
 	bool bIsExplosive = false;

@@ -62,7 +62,7 @@ private:
 
 	/** 사격 주기 (연사력) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	float FireRate = 0.2f;
+	float FireRate = 0.5f;
 
 	/** 기준 연사 속도 (최초값 저장용) */
 	float BaseFireRate;
@@ -88,28 +88,38 @@ private:
 	/** 누적 폭발 범위 보너스 */
 	float ExplosionRadiusBonus = 0.0f;
 
-	/** --- 변이 시너지 파라미터 (에디터 조절용) --- */
+	/** 누적 관통 횟수 보너스 (정수) */
+	int32 PiercingCountBonus = 0;
+
+	/** --- 무기 배율 (Weapon Multipliers) --- */
+	float WeaponFireRateMultiplier = 1.0f;
+	float WeaponProjectileSpeedMultiplier = 1.0f;
+	float WeaponRangeMultiplier = 1.0f;
+	float WeaponProjectileSizeMultiplier = 1.0f;
+	float WeaponMaxEggGaugeMultiplier = 1.0f;
+	float WeaponGaugeRecoveryMultiplier = 1.0f;
+	float WeaponPiercingCountMultiplier = 1.0f;
+	float WeaponSpreadAngleBase = 10.0f;
+
+	/** 최종 스탯 재계산 */
+	void UpdateFinalStats();
+
+	/** --- 변이 시너지 파라미터 (에디터 조절용 기본값) --- */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
-	float DefaultProjectileSpeed = 2500.f;
+	float BaseProjectileSpeed = 1000.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
-	float SniperProjectileSpeed = 10000.f;
+	float BaseLifeSpan = 3.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
-	float FlamethrowerProjectileSpeed = 1500.f;
+	int32 BaseMaxPiercingCount = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
-	float DefaultLifeSpan = 3.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
-	float SniperLifeSpan = 5.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Mutation", meta = (AllowPrivateAccess = "true"))
-	float FlamethrowerLifeSpan = 0.4f;
-
-	/** 달걀 게이지 관련 변수 */
+	/** --- 게이지 시스템 (퍼센트 기반) --- */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Gauge", meta = (AllowPrivateAccess = "true"))
-	float MaxEggGauge = 100.f;
+	float BaseMaxEggGauge = 100.f;
+
+	/** 최대 게이지 보너스 (0.1 = 10% 증가) */
+	float MaxEggGaugeBonus = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Gauge", meta = (AllowPrivateAccess = "true"))
 	float CurrentEggGauge;
@@ -118,7 +128,15 @@ private:
 	float GaugeCostPerShot = 5.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Gauge", meta = (AllowPrivateAccess = "true"))
+	float BaseGaugeRecoveryRate = 15.f;
+
+	/** 게이지 회복 속도 보너스 (0.1 = 10% 증가) */
+	float GaugeRecoveryBonus = 0.0f;
+
+	/** 실시간 계산되는 최종 스탯들 */
+	float MaxEggGauge = 100.f;
 	float GaugeRecoveryRate = 15.f;
+	int32 MaxPiercingCount = 0;
 
 	/** 업그레이드 메커니즘 상태 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Mech", meta = (AllowPrivateAccess = "true"))

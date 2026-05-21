@@ -57,7 +57,7 @@ ADuckCharacter::ADuckCharacter()
 	bUseControllerRotationYaw = false;
 
 	GetCharacterMovement()->bOrientRotationToMovement = false;
-	GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+	GetCharacterMovement()->MaxWalkSpeed = BaseMoveSpeed;
 
 	// 초기 체력 설정
 	CurrentHealth = MaxHealth;
@@ -499,13 +499,15 @@ void ADuckCharacter::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 		switch (Effect.Type)
 		{
 		case EUpgradeType::Stat_MaxHealth:
-			MaxHealth += Effect.Value; // 체력은 퍼센트가 아닌 절대치로 일단 유지 (필요시 변경 가능)
+			// 최대 체력 절대치 증가 및 현재 체력 동일 수치 회복
+			MaxHealth += Effect.Value;
 			CurrentHealth = FMath::Clamp(CurrentHealth + Effect.Value, 0.f, MaxHealth);
+			UE_LOG(LogTemp, Warning, TEXT("Max Health Increased: +%.f (Total: %.f), Current Health recovered to: %.f"), Effect.Value, MaxHealth, CurrentHealth);
 			break;
 
 		case EUpgradeType::Stat_MoveSpeed:
-			MoveSpeed += Effect.Value;
-			GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+			MoveSpeedBonus += Effect.Value;
+			UpdateMoveSpeed();
 			break;
 
 		case EUpgradeType::Stat_AttackDamage:
@@ -591,4 +593,14 @@ void ADuckCharacter::AddGold(int32 Amount)
 {
 	Gold += Amount;
 	RefreshHUD();
+}
+
+void ADuckCharacter::UpdateMoveSpeed()
+{
+	if (GetCharacterMovement())
+	{
+		GetCharacterMovement()->MaxWalkSpeed = (BaseMoveSpeed * WeaponMoveSpeedMultiplier) * (1.0f + MoveSpeedBonus);
+		UE_LOG(LogTemp, Warning, TEXT("Move Speed Recalculated: %.2f (WeaponMult: %.2f, Bonus: %.1f%%)"), 
+			GetCharacterMovement()->MaxWalkSpeed, WeaponMoveSpeedMultiplier, MoveSpeedBonus * 100.f);
+	}
 }

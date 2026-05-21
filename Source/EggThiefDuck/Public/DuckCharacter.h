@@ -97,14 +97,18 @@ private:
 	/** 마우스 조준 로직 */
 	void LookAtMouseCursor();
 
-	/** 캐릭터 이동 속도 */
+	/** 캐릭터 기본 이동 속도 */
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float MoveSpeed = 600.f;
+	float BaseMoveSpeed = 600.f;
+
+	/** 이동 속도 보너스 (0.1 = 10% 증가) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	float MoveSpeedBonus = 0.0f;
 
 	/** 마지막 사격 시간 (조준 유지용) */
 	float LastFireTime = 0.0f;
 
-	/** 스탯 (체력) */
+	/** 스탯 (체력 - 유일하게 절대치 기반) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats", meta = (AllowPrivateAccess = "true"))
 	float MaxHealth = 100.0f;
 
@@ -238,13 +242,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stats")
 	int32 GetGold() const { return Gold; }
 
-	/** 현재 공격력 반환 (퍼센트 보너스 포함) */
+	/** 무기 고유의 공격력 배율 (저격총 2.0 등) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	float WeaponDamageMultiplier = 1.0f;
+
+	/** 무기 고유의 이동 속도 배율 (무거운 무기 0.8 등) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
+	float WeaponMoveSpeedMultiplier = 1.0f;
+
+	/** 현재 공격력 반환 (기본 * 무기배율 * (1 + 보너스)) */
 	UFUNCTION(BlueprintCallable, Category = "Stats")
-	float GetCurrentAttackDamage() const { return BaseDamage * (1.0f + AttackDamageBonus); }
+	float GetCurrentAttackDamage() const { return (BaseDamage * WeaponDamageMultiplier) * (1.0f + AttackDamageBonus); }
 
 	/** 기본 공격력 반환 (기준값) */
 	UFUNCTION(BlueprintCallable, Category = "Stats")
 	float GetBaseDamage() const { return BaseDamage; }
+
+	/** 이동 속도 재계산 */
+	void UpdateMoveSpeed();
 
 	/** 현재 체력 비율 반환 (0.0 ~ 1.0) */
 	UFUNCTION(BlueprintPure, Category = "Stats")
