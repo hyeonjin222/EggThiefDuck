@@ -491,6 +491,8 @@ void ADuckCharacter::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 	int32& CurrentLvl = AppliedUpgradeLevels.FindOrAdd(FinalID);
 	CurrentLvl++;
 
+	bool bIsFirstTime = (CurrentLvl == 1);
+
 	UE_LOG(LogTemp, Warning, TEXT("Applying Upgrade: %s (Level %d, ID: %s)"), *Upgrade->UpgradeName.ToString(), CurrentLvl, *FinalID.ToString());
 
 	// 2. 모든 효과 순회하며 적용
@@ -528,14 +530,14 @@ void ADuckCharacter::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 		case EUpgradeType::Weapon_Mod_Explosive:
 		case EUpgradeType::Weapon_Mod_Sniper:
 		case EUpgradeType::Weapon_Mod_Flamethrower:
-			if (CombatComp) CombatComp->ApplyUpgrade(Upgrade);
+			if (CombatComp) CombatComp->ApplyUpgrade(Upgrade, bIsFirstTime);
 			break;
 
 		// 패시브 무기 설치
 		case EUpgradeType::Weapon_Passive_Orbit:
 		case EUpgradeType::Weapon_Passive_AutoBomb:
 		case EUpgradeType::Weapon_Passive_Molotov:
-			if (Upgrade->SpecialActorClass)
+			if (Upgrade->SpecialActorClass && bIsFirstTime) // 패시브 무기 액터도 처음 획득 시에만 생성
 			{
 				FActorSpawnParameters SpawnParams;
 				SpawnParams.Owner = this;
@@ -547,27 +549,27 @@ void ADuckCharacter::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 
 	// 3. 연출 (VFX & Sound)
 	
-	// 일회성 획득 VFX
+	// 일회성 획득 VFX (매 레벨업 시 발생)
 	if (Upgrade->UpgradeVFX)
 	{
 		PlayUpgradeVFX(Upgrade->UpgradeVFX);
 	}
 
-	// 플레이어 지속 VFX (오라 등)
-	if (Upgrade->PlayerPersistentVFX)
+	// 플레이어 지속 VFX (처음 획득 시에만 생성)
+	if (bIsFirstTime)
 	{
-		// 이미 같은 ID의 VFX가 있다면 제거 후 다시 생성 (업그레이드 단계별 시각적 변화 대응)
-		if (TObjectPtr<UNiagaraComponent>* OldVFX = PersistentVFXComponents.Find(FinalID))
+		for (UNiagaraSystem* PersistentVFX : Upgrade->PlayerPersistentVFXs)
 		{
-			if (*OldVFX) (*OldVFX)->DestroyComponent();
-		}
+			if (!PersistentVFX) continue;
 
-		UNiagaraComponent* NewVFXComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
-			Upgrade->PlayerPersistentVFX, GetMesh(), NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
-		
-		if (NewVFXComp)
-		{
-			PersistentVFXComponents.Add(FinalID, NewVFXComp);
+			UNiagaraComponent* NewVFXComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				PersistentVFX, GetMesh(), NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+			
+			if (NewVFXComp)
+			{
+				// 여러 개일 수 있으므로 ID에 인덱스를 붙여 저장하거나 그냥 관리 (중복 제거는 이미 bIsFirstTime으로 보장됨)
+				PersistentVFXComponents.Add(FName(*FString::Printf(TEXT("%s_%d"), *FinalID.ToString(), PersistentVFXComponents.Num())), NewVFXComp);
+			}
 		}
 	}
 

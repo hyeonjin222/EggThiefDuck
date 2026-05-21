@@ -92,9 +92,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Collision")
 	TObjectPtr<UBoxComponent> AttackBox;
 
-	/** 비주얼 메시 */
+	/** 비주얼 메시 (Static) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Visual")
 	TObjectPtr<UStaticMeshComponent> EnemyMesh;
+
+	/** 비주얼 메시 (Skeletal) - 스켈레탈 메시 에셋을 쓸 경우 여기에 할당 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Visual")
+	TObjectPtr<class USkeletalMeshComponent> EnemySkeletalMesh;
+
+	/** 현재 활성화된 메시 (Squash & Stretch 적용 대상) */
+	UPROPERTY()
+	TObjectPtr<USceneComponent> ActiveMeshPtr;
 
 	/** 머리 위 체력바 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|UI")
@@ -128,13 +136,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|UI")
 	TSubclassOf<class ADamageTextActor> DamageTextClass;
 
-	/** 공격력 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Combat")
-	float AttackDamage = 10.0f;
-
-	/** 체력 */
+	/** --- 전투 스탯 (블루프린트에서 수정 가능) --- */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Stats")
 	float MaxHealth = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Stats")
+	float AttackDamage = 10.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Stats")
 	float CurrentHealth;

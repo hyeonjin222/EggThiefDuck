@@ -34,7 +34,7 @@ public:
 	void RefillGauge(float Amount);
 
 	/** 업그레이드 적용 */
-	void ApplyUpgrade(class UUpgradeDataAsset* Upgrade);
+	void ApplyUpgrade(class UUpgradeDataAsset* Upgrade, bool bIsFirstTime);
 
 	/** 발사체에 적용될 나이아가라 이펙트 목록 추가 */
 	void AddProjectileTrailVFX(class UNiagaraSystem* VFX);

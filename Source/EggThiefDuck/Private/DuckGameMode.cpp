@@ -16,8 +16,8 @@ ADuckGameMode::ADuckGameMode()
 	DefaultPawnClass = ADuckCharacter::StaticClass();
 	PlayerControllerClass = ADuckPlayerController::StaticClass();
 
-	// 기본 시간 설정: 밤 12시부터 시작
-	CurrentHour = 0.0f;
+	// 기본 시간 설정: 저녁 7시(19:00)부터 시작
+	CurrentHour = 19.0f;
 	TimeScale = 0.5f; // 기본값: 현실 1초당 게임 시간 0.5분 (조절 가능)
 }
 
@@ -104,8 +104,10 @@ void ADuckGameMode::UpdateLightRotation()
 
 void ADuckGameMode::CheckPhaseTransition()
 {
-	// 시간대별 페이즈 전환 로직
-	if (CurrentHour >= NightStartTime && CurrentHour < MorningStartTime)
+	// 시간대별 페이즈 전환 로직 (밤 19:00 ~ 새벽 06:00 처리)
+	bool bIsNightTime = (CurrentHour >= NightStartTime) || (CurrentHour < MorningStartTime);
+
+	if (bIsNightTime)
 	{
 		if (CurrentPhase != EGamePhase::Night) SetPhase(EGamePhase::Night);
 	}
@@ -113,7 +115,7 @@ void ADuckGameMode::CheckPhaseTransition()
 	{
 		if (CurrentPhase != EGamePhase::Morning) SetPhase(EGamePhase::Morning);
 	}
-	else // 8 AM ~ 12 AM
+	else // 8 AM ~ 19 PM
 	{
 		if (CurrentPhase != EGamePhase::Day) SetPhase(EGamePhase::Day);
 	}

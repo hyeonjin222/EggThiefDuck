@@ -207,13 +207,17 @@ void UDuckCombatComponent::FireProjectile()
 	}
 }
 
-void UDuckCombatComponent::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
+void UDuckCombatComponent::ApplyUpgrade(UUpgradeDataAsset* Upgrade, bool bIsFirstTime)
 {
 	if (!Upgrade) return;
 
-	if (Upgrade->ProjectileTrailVFX)
+	// 처음 획득할 때만 발사체 트레일 VFX 추가
+	if (bIsFirstTime)
 	{
-		AddProjectileTrailVFX(Upgrade->ProjectileTrailVFX);
+		for (UNiagaraSystem* TrailVFX : Upgrade->ProjectileTrailVFXs)
+		{
+			AddProjectileTrailVFX(TrailVFX);
+		}
 	}
 
 	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());

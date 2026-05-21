@@ -4,6 +4,7 @@
 #include "Components/BoxComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "EnemyBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
@@ -76,7 +77,7 @@ void AEggProjectile::AddTrailVFX(UNiagaraSystem* VFX)
 {
 	if (VFX)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAttached(VFX, RootComponent, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+		TrailComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(VFX, RootComponent, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
 	}
 }
 
@@ -109,8 +110,24 @@ void AEggProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor
 		UGameplayStatics::ApplyRadialDamage(this, Damage * 0.5f, GetActorLocation(), FinalRadius, UDamageType::StaticClass(), TArray<AActor*>(), this);
 	}
 
-	// 시각적 소멸 처리
+	// --- 시각적 소멸 및 궤적 유지 처리 ---
 	if (ProjectileMesh) ProjectileMesh->SetVisibility(false);
 	if (BoxComp) BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	SetLifeSpan(0.1f);
+	
+	// 블루프린트에서 추가한 조명 끄기
+	TArray<UPointLightComponent*> PointLights;
+	GetComponents<UPointLightComponent>(PointLights);
+	for (UPointLightComponent* Light : PointLights)
+	{
+		Light->SetVisibility(false);
+	}
+	
+	// 이동 중지
+	if (ProjectileMovement) ProjectileMovement->StopMovementImmediately();
+
+	// 트레일 입자 방출 중단 (기존 입자는 수명만큼 남음)
+	if (TrailComponent) TrailComponent->Deactivate();
+
+	// 0.55초 후 액터 파괴 (VFX가 사라질 시간 확보)
+	SetLifeSpan(0.55f);
 }

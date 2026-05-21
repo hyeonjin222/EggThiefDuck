@@ -50,6 +50,9 @@ public:
 	/** VFX 추가 */
 	void AddTrailVFX(class UNiagaraSystem* VFX);
 
+	UPROPERTY()
+	TObjectPtr<class UNiagaraComponent> TrailComponent;
+
 	/** --- 컴포넌트 (BoxComp로 이름 통일 및 노출) --- */
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile|Collision")

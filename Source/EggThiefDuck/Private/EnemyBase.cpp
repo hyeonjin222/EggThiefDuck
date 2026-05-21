@@ -3,6 +3,7 @@
 #include "EnemyBase.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
@@ -44,6 +45,11 @@ AEnemyBase::AEnemyBase()
 	EnemyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	EnemyMesh->SetAbsolute(false, false, true);
 
+	EnemySkeletalMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("EnemySkeletalMesh"));
+	EnemySkeletalMesh->SetupAttachment(RootComponent);
+	EnemySkeletalMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	EnemySkeletalMesh->SetAbsolute(false, false, true);
+
 	// 4. UI 설정
 	HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
 	HealthBarWidget->SetupAttachment(RootComponent);
@@ -67,7 +73,25 @@ void AEnemyBase::BeginPlay()
 {
 	Super::BeginPlay();
 	CurrentHealth = MaxHealth;
-	if (EnemyMesh) BaseMeshScale = EnemyMesh->GetRelativeScale3D();
+
+	// 스태틱 메시가 있으면 사용, 없으면 스켈레탈 메시 사용 (둘 다 없으면 기본값)
+	if (EnemyMesh && EnemyMesh->GetStaticMesh())
+	{
+		ActiveMeshPtr = EnemyMesh;
+		BaseMeshScale = EnemyMesh->GetRelativeScale3D();
+		if (EnemySkeletalMesh) EnemySkeletalMesh->SetHiddenInGame(true);
+	}
+	else if (EnemySkeletalMesh && EnemySkeletalMesh->GetSkeletalMeshAsset())
+	{
+		ActiveMeshPtr = EnemySkeletalMesh;
+		BaseMeshScale = EnemySkeletalMesh->GetRelativeScale3D();
+		if (EnemyMesh) EnemyMesh->SetHiddenInGame(true);
+	}
+	else
+	{
+		ActiveMeshPtr = nullptr;
+		BaseMeshScale = FVector(1.0f);
+	}
 }
 
 void AEnemyBase::OnAttackOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -113,14 +137,18 @@ void AEnemyBase::Tick(float DeltaTime)
 		}
 	}
 
-	// Squash & Stretch 연출
-	float VelocityZ = GetVelocity().Z;
-	if (FMath::Abs(VelocityZ) < 10.0f) VelocityZ = 0.0f;
-	float TargetStretch = 1.0f + (FMath::Clamp(VelocityZ, -1000.f, 1000.f) * 0.0005f);
-	FVector CurrentScale = EnemyMesh->GetRelativeScale3D();
-	float CurrentStretch = CurrentScale.Z / BaseMeshScale.Z;
-	float SmoothedStretch = FMath::FInterpTo(CurrentStretch, TargetStretch, DeltaTime, 15.0f);
-	EnemyMesh->SetRelativeScale3D(FVector(BaseMeshScale.X / FMath::Sqrt(SmoothedStretch), BaseMeshScale.Y / FMath::Sqrt(SmoothedStretch), BaseMeshScale.Z * SmoothedStretch));
+	// Squash & Stretch 연출 (ActiveMeshPtr가 유효할 때만 실행)
+	if (ActiveMeshPtr)
+	{
+		float VelocityZ = GetVelocity().Z;
+		if (FMath::Abs(VelocityZ) < 10.0f) VelocityZ = 0.0f;
+		float TargetStretch = 1.0f + (FMath::Clamp(VelocityZ, -1000.f, 1000.f) * 0.0005f);
+
+		FVector CurrentScale = ActiveMeshPtr->GetRelativeScale3D();
+		float CurrentStretch = CurrentScale.Z / BaseMeshScale.Z;
+		float SmoothedStretch = FMath::FInterpTo(CurrentStretch, TargetStretch, DeltaTime, 15.0f);
+		ActiveMeshPtr->SetRelativeScale3D(FVector(BaseMeshScale.X / FMath::Sqrt(SmoothedStretch), BaseMeshScale.Y / FMath::Sqrt(SmoothedStretch), BaseMeshScale.Z * SmoothedStretch));
+	}
 
 	// 플레이어 추격 회전
 	APawn* Player = UGameplayStatics::GetPlayerPawn(this, 0);

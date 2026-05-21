@@ -113,13 +113,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual Effects")
 	TObjectPtr<UNiagaraSystem> UpgradeVFX;
 
-	/** 플레이어에게 계속 붙어있을 나이아가라 이펙트 (오라, 버프 등) */
+	/** 플레이어에게 계속 붙어있을 나이아가라 이펙트 목록 (오라, 버프 등) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual Effects")
-	TObjectPtr<UNiagaraSystem> PlayerPersistentVFX;
+	TArray<TObjectPtr<UNiagaraSystem>> PlayerPersistentVFXs;
 
-	/** 이 업그레이드 이후 발사되는 달걀에 붙을 나이아가라 이펙트 (잔상 등) */
+	/** 이 업그레이드 이후 발사되는 달걀에 붙을 나이아가라 이펙트 목록 (잔상 등) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual Effects")
-	TObjectPtr<UNiagaraSystem> ProjectileTrailVFX;
+	TArray<TObjectPtr<UNiagaraSystem>> ProjectileTrailVFXs;
 
 	/** 업그레이드 획득 시 재생할 사운드 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual Effects")

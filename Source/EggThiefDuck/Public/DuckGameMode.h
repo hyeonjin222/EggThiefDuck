@@ -60,10 +60,10 @@ private:
 	void CheckPhaseTransition();
 	void SetPhase(EGamePhase NewPhase);
 
-	/** 밤 시작 시간 (12 AM = 0.0) */
-	const float NightStartTime = 0.0f;
-	/** 아침(도망) 시작 시간 (6 AM) */
+	/** 전투 시작 시간 (7 PM) */
+	const float NightStartTime = 19.0f;
+	/** 아침(퇴각) 시작 시간 (6 AM) */
 	const float MorningStartTime = 6.0f;
-	/** 낮(상점) 시작 시간 (8 AM) */
+	/** 정비(낮) 시작 시간 (8 AM) */
 	const float DayStartTime = 8.0f;
 };
