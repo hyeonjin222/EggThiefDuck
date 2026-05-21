@@ -24,7 +24,7 @@ public:
 
 	/** 텍스트 설정 및 데미지 값 전달 (블루프린트에서 호출 및 구현 가능) */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "UI")
-	void SetDamageValue(float DamageAmount);
+	void SetDamageValue(int32 DamageAmount);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")

@@ -142,11 +142,25 @@ void AEnemyBase::Tick(float DeltaTime)
 	{
 		float VelocityZ = GetVelocity().Z;
 		if (FMath::Abs(VelocityZ) < 10.0f) VelocityZ = 0.0f;
-		float TargetStretch = 1.0f + (FMath::Clamp(VelocityZ, -1000.f, 1000.f) * 0.0005f);
+		
+		// 1. 과장된 스쿼시 앤 스트레치 계수 (기존 0.0005f -> 0.0015f로 3배 강화)
+		// 점프 시 위로 길쭉해지고, 착지/낙하 시 납작해지는 폭을 키웁니다.
+		float TargetStretch = 1.0f + (FMath::Clamp(VelocityZ, -1200.f, 1200.f) * 0.0015f);
+
+		// 2. 바닥에 닿았을 때(착지 직후) 짧게 과장되게 찌그러지도록 추가 보정
+		if (IsGrounded() && HopTimer < 0.1f)
+		{
+			// 점프 직전 혹은 착지 직후에 아주 납작(0.6배)해짐
+			TargetStretch = 0.6f; 
+		}
 
 		FVector CurrentScale = ActiveMeshPtr->GetRelativeScale3D();
 		float CurrentStretch = CurrentScale.Z / BaseMeshScale.Z;
-		float SmoothedStretch = FMath::FInterpTo(CurrentStretch, TargetStretch, DeltaTime, 15.0f);
+		
+		// 3. 복원 속도를 조절하여 젤리 같은 탄성 부여 (기존 15.0f -> 18.0f로 약간 더 빠르고 찰지게)
+		float SmoothedStretch = FMath::FInterpTo(CurrentStretch, TargetStretch, DeltaTime, 18.0f);
+		
+		// 체적 유지를 위해 Z축이 늘어난 만큼 X, Y축을 얇게(또는 두껍게) 만듦
 		ActiveMeshPtr->SetRelativeScale3D(FVector(BaseMeshScale.X / FMath::Sqrt(SmoothedStretch), BaseMeshScale.Y / FMath::Sqrt(SmoothedStretch), BaseMeshScale.Z * SmoothedStretch));
 	}
 
@@ -167,7 +181,7 @@ float AEnemyBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent
 {
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	CurrentHealth -= ActualDamage;
-	SpawnDamageText(ActualDamage);
+	SpawnDamageText(FMath::FloorToInt(ActualDamage));
 	if (CurrentHealth <= 0.0f) Die();
 	return ActualDamage;
 }

@@ -131,7 +131,7 @@ protected:
 	TArray<FItemDropRecord> DropTable;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Enemy|UI")
-	void SpawnDamageText(float DamageAmount);
+	void SpawnDamageText(int32 DamageAmount);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|UI")
 	TSubclassOf<class ADamageTextActor> DamageTextClass;

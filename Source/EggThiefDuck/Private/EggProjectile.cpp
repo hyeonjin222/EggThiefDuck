@@ -24,10 +24,10 @@ AEggProjectile::AEggProjectile()
 	BoxComp->BodyInstance.bUseCCD = true;
 	BoxComp->SetNotifyRigidBodyCollision(true);
 
-	// 2. 반응 설정: 바닥(Static/Dynamic)과 적(Pawn) 모두 막음 (안정성 우선)
+	// 2. 반응 설정: 바닥(Static)과 적(Pawn)은 막고, 달걀끼리(WorldDynamic)는 무시
 	BoxComp->SetCollisionResponseToAllChannels(ECR_Ignore);
 	BoxComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-	BoxComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+	BoxComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore); // 달걀끼리 충돌 방지
 	BoxComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 	BoxComp->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
 

@@ -37,6 +37,19 @@ enum class EUpgradeType : uint8
 	Weapon_Mod_Sniper       UMETA(DisplayName = "Weapon Mod: Sniper Shot"),
 	Weapon_Mod_Flamethrower UMETA(DisplayName = "Weapon Mod: Flamethrower"),
 
+	// --- 무기별 세부 배율 및 기본값 (데이터 기반 조절용) ---
+	Weapon_Mult_FireRate          UMETA(DisplayName = "Weapon Mult: Fire Rate"),
+	Weapon_Mult_Damage            UMETA(DisplayName = "Weapon Mult: Damage"),
+	Weapon_Mult_ProjectileSpeed   UMETA(DisplayName = "Weapon Mult: Projectile Speed"),
+	Weapon_Mult_Range             UMETA(DisplayName = "Weapon Mult: Range"),
+	Weapon_Mult_ProjectileSize    UMETA(DisplayName = "Weapon Mult: Projectile Size"),
+	Weapon_Mult_GaugeMax          UMETA(DisplayName = "Weapon Mult: Max Egg Gauge"),
+	Weapon_Mult_GaugeRecovery     UMETA(DisplayName = "Weapon Mult: Gauge Recovery"),
+	Weapon_Mult_PiercingCount     UMETA(DisplayName = "Weapon Mult: Piercing Count"),
+	Weapon_Mult_MoveSpeed         UMETA(DisplayName = "Weapon Mult: Move Speed"),
+	Weapon_Base_SpreadAngle       UMETA(DisplayName = "Weapon Base: Spread Angle"),
+	Weapon_Base_MultiShotCount     UMETA(DisplayName = "Weapon Base: MultiShot Count"),
+
 	// --- 패시브 무기 (독립 작동 - 5레벨 무기 선택용) ---
 	Weapon_Passive_Orbit    UMETA(DisplayName = "Weapon Passive: Orbiting"),
 	Weapon_Passive_AutoBomb UMETA(DisplayName = "Weapon Passive: Auto Bomb"),

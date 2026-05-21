@@ -99,7 +99,7 @@ private:
 
 	/** 캐릭터 기본 이동 속도 */
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float BaseMoveSpeed = 600.f;
+	float BaseMoveSpeed = 400.f;
 
 	/** 이동 속도 보너스 (0.1 = 10% 증가) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))

@@ -266,51 +266,68 @@ void UDuckCombatComponent::ApplyUpgrade(UUpgradeDataAsset* Upgrade, bool bIsFirs
 			PiercingCountBonus += FMath::RoundToInt(Effect.Value);
 			break;
 
+		// --- 무기별 세부 배율 및 기본값 (데이터 기반 조절용) ---
+		case EUpgradeType::Weapon_Mult_FireRate:
+			WeaponFireRateMultiplier *= Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Mult_Damage:
+			if (OwnerCharacter) OwnerCharacter->WeaponDamageMultiplier *= Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Mult_ProjectileSpeed:
+			WeaponProjectileSpeedMultiplier *= Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Mult_Range:
+			WeaponRangeMultiplier *= Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Mult_ProjectileSize:
+			WeaponProjectileSizeMultiplier *= Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Mult_GaugeMax:
+			WeaponMaxEggGaugeMultiplier *= Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Mult_GaugeRecovery:
+			WeaponGaugeRecoveryMultiplier *= Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Mult_PiercingCount:
+			WeaponPiercingCountMultiplier *= Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Mult_MoveSpeed:
+			if (OwnerCharacter) OwnerCharacter->WeaponMoveSpeedMultiplier *= Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Base_SpreadAngle:
+			WeaponSpreadAngleBase += Effect.Value;
+			break;
+
+		case EUpgradeType::Weapon_Base_MultiShotCount:
+			MultiShotCount += FMath::RoundToInt(Effect.Value);
+			break;
+
+		// --- 주무기 변이 (모드 활성화 플래그 및 특수 로직만 담당) ---
 		case EUpgradeType::Weapon_Mod_MachineGun:
 			bMachineGunEnabled = true;
-			WeaponFireRateMultiplier = 0.5f; // 공속 2배
-			WeaponMaxEggGaugeMultiplier = 2.0f; // 최대 탄약 2배
-			WeaponGaugeRecoveryMultiplier = 2.0f; // 탄약 회복속도 2배
-			if (OwnerCharacter) OwnerCharacter->WeaponDamageMultiplier = 0.7f; // 데미지 배율 0.7
-			WeaponSpreadAngleBase = 15.0f;
 			break;
 
 		case EUpgradeType::Weapon_Mod_Shotgun:
 			bShotgunEnabled = true;
-			// 샷건: 산탄 4개 발사
-			MultiShotCount = FMath::Max(MultiShotCount, 4);
-			// 공속 50% 감소 (간격 2배)
-			WeaponFireRateMultiplier = 2.0f;
-			// 데미지 30% 감소 (배율 0.7)
-			if (OwnerCharacter) OwnerCharacter->WeaponDamageMultiplier = 0.7f;
-			
-			WeaponRangeMultiplier = 0.15f; 
-			WeaponSpreadAngleBase = 30.0f; 
-			WeaponProjectileSizeMultiplier = 1.5f;
+			// 샷건 모드 활성화 (발사 개수는 이제 Weapon_Base_MultiShotCount에서 누적 처리됨)
 			break;
+
 		case EUpgradeType::Weapon_Mod_Sniper:
 			bSniperEnabled = true;
 			bPiercingEnabled = false; // 관통 롤백
-			// 저격총: 공속 50% 감소 (간격 2.0배)
-			WeaponFireRateMultiplier = 2.0f;
-			// 데미지 2배 증가
-			if (OwnerCharacter) OwnerCharacter->WeaponDamageMultiplier = 2.0f;
-			// 투사체 속도 3배 증가
-			WeaponProjectileSpeedMultiplier = 3.0f;
-			// 관통 배율 초기화
-			WeaponPiercingCountMultiplier = 0.0f;
-
-			WeaponSpreadAngleBase = 0.0f;
 			break;
 
 		case EUpgradeType::Weapon_Mod_Flamethrower:
 			bFlamethrowerEnabled = true;
-			WeaponFireRateMultiplier = 0.2f;
-			WeaponProjectileSpeedMultiplier = 0.6f;
-			WeaponRangeMultiplier = 0.2f;
-			WeaponProjectileSizeMultiplier = 2.5f;
-			WeaponSpreadAngleBase = 40.0f;
-			if (OwnerCharacter) OwnerCharacter->WeaponDamageMultiplier = 0.3f;
 			break;
 
 		case EUpgradeType::Weapon_Mod_Piercing:
