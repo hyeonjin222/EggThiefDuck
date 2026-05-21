@@ -73,7 +73,7 @@ void ADuckCharacter::BeginPlay()
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
-		PlayerController->bShowMouseCursor = true;
+		PlayerController->bShowMouseCursor = false;
 	}
 
 	RefreshHUD();
@@ -473,7 +473,7 @@ void ADuckCharacter::SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade)
 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		
 		PC->SetInputMode(InputMode);
-		PC->bShowMouseCursor = true;
+		PC->bShowMouseCursor = false;
 		
 		// 슬레이트(UI) 레벨에서도 포커스를 게임 뷰포트로 강제 이동
 		FSlateApplication::Get().SetAllUserFocusToGameViewport();

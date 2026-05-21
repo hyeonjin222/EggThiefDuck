@@ -2,6 +2,7 @@
 
 #include "DuckCombatComponent.h"
 #include "DuckCharacter.h"
+#include "DuckPlayerController.h"
 #include "EggProjectile.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
@@ -148,6 +149,12 @@ void UDuckCombatComponent::FireProjectile()
 	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
 	if (OwnerCharacter && ProjectileClass)
 	{
+		// 커서 애니메이션 실행
+		if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(OwnerCharacter->GetController()))
+		{
+			PC->PlayCursorFireAnimation();
+		}
+
 		// --- 변이 시너지 파라미터 최종 계산 ---
 		// 공식: (기본 * 무기배율) * (1 + 강화수치)
 		float FinalSpeed = (BaseProjectileSpeed * WeaponProjectileSpeedMultiplier) * (1.0f + ProjectileSpeedBonus);

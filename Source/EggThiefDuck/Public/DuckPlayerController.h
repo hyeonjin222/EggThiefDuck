@@ -7,6 +7,7 @@
 #include "DuckPlayerController.generated.h"
 
 class UMainHUDWidget;
+class UDuckCursorWidget;
 
 /**
  * UI 관리를 전담하는 플레이어 컨트롤러
@@ -20,11 +21,16 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
+	virtual void PlayerTick(float DeltaTime) override;
+
 	/** HUD 업데이트 함수들 */
 	void UpdateHUDHealth(float CurrentHP, float MaxHP);
 	void UpdateHUDXP(int32 Level, float CurrentXP, float MaxXP);
 	void UpdateHUDGold(int32 Amount);
 	void UpdateHUDTime(int32 Day, float Hour);
+
+	/** 커서 애니메이션 재생 */
+	void PlayCursorFireAnimation();
 
 private:
 	/** 위젯 클래스 (블루프린트에서 지정) */
@@ -34,4 +40,12 @@ private:
 	/** 실제 생성된 위젯 인스턴스 */
 	UPROPERTY()
 	TObjectPtr<UMainHUDWidget> MainHUDWidget;
+
+	/** 커서 위젯 클래스 */
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UDuckCursorWidget> CursorWidgetClass;
+
+	/** 커서 위젯 인스턴스 */
+	UPROPERTY()
+	TObjectPtr<UDuckCursorWidget> CursorWidget;
 };

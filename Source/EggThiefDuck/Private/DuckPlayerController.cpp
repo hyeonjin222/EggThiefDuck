@@ -2,6 +2,7 @@
 
 #include "DuckPlayerController.h"
 #include "UI/MainHUDWidget.h"
+#include "UI/DuckCursorWidget.h"
 #include "Blueprint/UserWidget.h"
 
 void ADuckPlayerController::BeginPlay()
@@ -16,6 +17,43 @@ void ADuckPlayerController::BeginPlay()
 		{
 			MainHUDWidget->AddToViewport(100); // 블러보다 위에 그리기 위해 높은 우선순위 부여
 		}
+	}
+
+	// 커스텀 커서 생성
+	if (CursorWidgetClass)
+	{
+		CursorWidget = CreateWidget<UDuckCursorWidget>(this, CursorWidgetClass);
+		if (CursorWidget)
+		{
+			CursorWidget->AddToViewport(999); // 최상단에 배치
+			bShowMouseCursor = false; // 윈도우 기본 커서는 숨김
+		}
+	}
+}
+
+void ADuckPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	// 커서 위치 업데이트
+	if (CursorWidget)
+	{
+		// 시스템 커서가 활성화되면(UI 상황 등) 조준점 숨김, 꺼지면(전투 상황) 보임
+		CursorWidget->SetVisibility(bShowMouseCursor ? ESlateVisibility::Hidden : ESlateVisibility::HitTestInvisible);
+
+		float MouseX, MouseY;
+		if (GetMousePosition(MouseX, MouseY))
+		{
+			CursorWidget->SetPositionInViewport(FVector2D(MouseX, MouseY));
+		}
+	}
+}
+
+void ADuckPlayerController::PlayCursorFireAnimation()
+{
+	if (CursorWidget)
+	{
+		CursorWidget->NotifyFire();
 	}
 }
 
