@@ -37,6 +37,9 @@ public:
 	/** 날짜 변경 알림 연출 (C++에서 직접 처리) */
 	void ShowDayNotification(int32 Day);
 
+	/** HUD 부드럽게 숨기기 시작 */
+	void StartFadeOut(float Duration);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -57,4 +60,9 @@ private:
 	bool bIsAnimatingNotification = false;
 	float NotificationTimer = 0.0f;
 	const float NotificationDuration = 3.0f; // 총 3초 동안 연출
+
+	/** HUD 전체 페이드 아웃 제어 변수 */
+	bool bIsFadingOut = false;
+	float FadeTimer = 0.0f;
+	float FadeDuration = 2.0f;
 };

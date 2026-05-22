@@ -66,10 +66,12 @@ protected:
 private:
 	/** 현재 레벨과 상황에 맞는 업그레이드 후보군 생성 */
 	TArray<UUpgradeDataAsset*> GenerateUpgradeOptions();
-
+private:
 	/** 카메라 줌 연출용 변수 */
 	bool bIsZoomingOut = false;
+	bool bIsDeathZooming = false;
 	float TargetArmLength = 1800.0f;
+	float DeathTargetArmLength = 800.0f;
 	float CurrentZoomSpeed = 3.0f;
 
 	/** 컴포넌트 */
@@ -122,7 +124,7 @@ private:
 
 	/** 스탯 (체력 - 유일하게 절대치 기반) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats", meta = (AllowPrivateAccess = "true"))
-	float MaxHealth = 100.0f;
+	float MaxHealth = 250.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats", meta = (AllowPrivateAccess = "true"))
 	float CurrentHealth;

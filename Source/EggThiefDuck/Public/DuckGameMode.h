@@ -15,6 +15,18 @@ enum class EGamePhase : uint8
 	Day UMETA(DisplayName = "Day (Shop)")
 };
 
+/** 사운드 타입 정의 */
+UENUM(BlueprintType)
+enum class EDuckSoundType : uint8
+{
+	StartGame,
+	LevelUp,
+	UpgradeSelected,
+	ItemPickup,
+	PlayerDeath,
+	ProjectileThrow
+};
+
 UCLASS()
 class EGGTHIEFDUCK_API ADuckGameMode : public AGameModeBase
 {
@@ -28,6 +40,13 @@ protected:
 
 public:
 	virtual void Tick(float DeltaTime) override;
+
+	/** 전역 사운드 재생 함수 */
+	UFUNCTION(BlueprintCallable, Category = "Game|Sound")
+	void PlayGlobalSound(EDuckSoundType SoundType, FVector Location = FVector::ZeroVector);
+
+	/** 배경음악 제어 */
+	void UpdateBGM(bool bIsIngame);
 
 	/** 현재 시간 (0.0 ~ 24.0) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Game|Time")
@@ -57,10 +76,34 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void StartGame();
 
+	/** 게임을 종료합니다. (승리/패배) */
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void EndGame(bool bIsVictory);
+
 protected:
 	/** 태양/달 역할을 할 조명 (에디터에서 지정하거나 자동 탐색) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game|Visual")
 	TObjectPtr<class ADirectionalLight> MainLight;
+
+	/** 사격 효과음 목록 (에디터에서 지정) */
+	UPROPERTY(EditAnywhere, Category = "Game|Sound")
+	TMap<EDuckSoundType, TObjectPtr<class USoundBase>> GlobalSoundMap;
+
+	/** 배경음악 (인트로) */
+	UPROPERTY(EditAnywhere, Category = "Game|Sound")
+	TObjectPtr<class USoundBase> BGM_Intro;
+
+	/** 배경음악 (인게임) */
+	UPROPERTY(EditAnywhere, Category = "Game|Sound")
+	TObjectPtr<class USoundBase> BGM_Ingame;
+
+	/** 실제 배경음악 재생 컴포넌트 */
+	UPROPERTY()
+	TObjectPtr<class UAudioComponent> BGMPlayer;
+
+	/** 게임 종료 시 호출되는 이벤트 (UI 표시용) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Game|Event")
+	void OnGameEnded(bool bIsVictory);
 
 	/** 페이즈 변경 시 호출되는 이벤트 (UI 업데이트용) */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Game|Event")

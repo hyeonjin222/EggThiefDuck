@@ -2,6 +2,7 @@
 
 #include "DuckCharacter.h"
 #include "DuckPlayerController.h"
+#include "DuckGameMode.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
@@ -84,21 +85,35 @@ void ADuckCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (bIsDead) return;
-
-	// 1. 카메라 줌 인트로 연출
-	if (bIsZoomingOut && SpringArmComp)
+	// 1. 카메라 줌 연출 (인트로 & 사망)
+	if (SpringArmComp)
 	{
-		float NewLength = FMath::FInterpTo(SpringArmComp->TargetArmLength, TargetArmLength, DeltaTime, CurrentZoomSpeed);
-		SpringArmComp->TargetArmLength = NewLength;
-
-		// 목표치에 거의 도달하면 중단
-		if (FMath::IsNearlyEqual(NewLength, TargetArmLength, 1.0f))
+		if (bIsZoomingOut)
 		{
-			SpringArmComp->TargetArmLength = TargetArmLength;
-			bIsZoomingOut = false;
+			float NewLength = FMath::FInterpTo(SpringArmComp->TargetArmLength, TargetArmLength, DeltaTime, CurrentZoomSpeed);
+			SpringArmComp->TargetArmLength = NewLength;
+
+			if (FMath::IsNearlyEqual(NewLength, TargetArmLength, 1.0f))
+			{
+				SpringArmComp->TargetArmLength = TargetArmLength;
+				bIsZoomingOut = false;
+			}
+		}
+		else if (bIsDeathZooming)
+		{
+			// 사망 시 더 천천히 줌인 (Speed 1.5)
+			float NewLength = FMath::FInterpTo(SpringArmComp->TargetArmLength, DeathTargetArmLength, DeltaTime, 1.5f);
+			SpringArmComp->TargetArmLength = NewLength;
+
+			if (FMath::IsNearlyEqual(NewLength, DeathTargetArmLength, 1.0f))
+			{
+				SpringArmComp->TargetArmLength = DeathTargetArmLength;
+				bIsDeathZooming = false;
+			}
 		}
 	}
+
+	if (bIsDead) return;
 
 	// UI 게이지 실시간 갱신 (특히 탄약 회복 연출을 위해)
 	RefreshHUD();
@@ -247,6 +262,12 @@ void ADuckCharacter::Die()
 	if (bIsDead) return;
 	bIsDead = true;
 
+	// 0. 사망 효과음 재생 (중앙 관리)
+	if (ADuckGameMode* GM = Cast<ADuckGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		GM->PlayGlobalSound(EDuckSoundType::PlayerDeath, GetActorLocation());
+	}
+
 	// 1. 입력 및 이동 차단
 	GetCharacterMovement()->DisableMovement();
 	GetCharacterMovement()->StopMovementImmediately();
@@ -272,13 +293,21 @@ void ADuckCharacter::Die()
 		float Duration = PlayAnimMontage(DeathMontage);
 		if (Duration > 0.f)
 		{
-			// 애니메이션이 완전히 끝나는 시점에 포즈를 고정
-			// (몽타주의 Blend Out 시간이 0일 때 가장 정확함)
 			GetWorldTimerManager().SetTimer(DeathTimerHandle, this, &ADuckCharacter::OnDeathAnimationFinished, Duration, false);
 		}
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Player is DEAD!"));
+	// 5. 사망 카메라 줌 연출 시작
+	bIsDeathZooming = true;
+
+	// 6. 5초 후 페이드 시퀀스 시작 (PlayerController에 위임)
+	if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(GetController()))
+	{
+		FTimerHandle RestartTimerHandle;
+		GetWorldTimerManager().SetTimer(RestartTimerHandle, PC, &ADuckPlayerController::StartDeathFadeSequence, 5.0f, false);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Player is DEAD! Starting death sequence..."));
 }
 
 void ADuckCharacter::OnDeathAnimationFinished()
@@ -373,6 +402,12 @@ void ADuckCharacter::LevelUp()
 
 	// HUD 즉시 갱신 (레벨 숫자 반영)
 	RefreshHUD();
+
+	// 0. 레벨업 효과음 재생 (중앙 관리)
+	if (ADuckGameMode* GM = Cast<ADuckGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		GM->PlayGlobalSound(EDuckSoundType::LevelUp);
+	}
 
 	// 1. 게임 일시 정지
 	UGameplayStatics::SetGamePaused(GetWorld(), true);
@@ -495,6 +530,12 @@ void ADuckCharacter::SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade)
 	if (SelectedUpgrade)
 	{
 		ApplyUpgrade(SelectedUpgrade);
+
+		// 업그레이드 선택 효과음 재생 (중앙 관리)
+		if (ADuckGameMode* GM = Cast<ADuckGameMode>(UGameplayStatics::GetGameMode(this)))
+		{
+			GM->PlayGlobalSound(EDuckSoundType::UpgradeSelected);
+		}
 	}
 
 	// 1. 게임 일시 정지 해제
@@ -612,11 +653,6 @@ void ADuckCharacter::ApplyUpgrade(UUpgradeDataAsset* Upgrade)
 
 	// 발사체 트레일 VFX는 CombatComp에서 처리 (ApplyUpgrade 내부에서 이미 호출됨)
 	
-	if (Upgrade->UpgradeSound)
-	{
-		UGameplayStatics::PlaySound2D(this, Upgrade->UpgradeSound);
-	}
-
 	RefreshHUD();
 }
 

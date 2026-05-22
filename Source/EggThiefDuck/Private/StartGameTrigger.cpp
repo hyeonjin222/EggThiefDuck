@@ -29,9 +29,10 @@ void AStartGameTrigger::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AAct
 	{
 		if (ADuckGameMode* GM = Cast<ADuckGameMode>(UGameplayStatics::GetGameMode(this)))
 		{
+			UE_LOG(LogTemp, Log, TEXT("StartGameTrigger: Player reached start zone. Starting Game and Destroying Trigger."));
 			GM->StartGame();
 			
-			// 트리거는 한 번만 작동하면 되므로 파괴하거나 비활성화
+			// 트리거는 한 번만 작동하면 되므로 파괴 (재시작 시 다시 생성됨)
 			Destroy();
 		}
 	}

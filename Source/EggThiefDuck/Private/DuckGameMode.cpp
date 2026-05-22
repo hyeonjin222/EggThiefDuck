@@ -7,6 +7,7 @@
 #include "Engine/DirectionalLight.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/AudioComponent.h"
 
 ADuckGameMode::ADuckGameMode()
 {
@@ -15,6 +16,10 @@ ADuckGameMode::ADuckGameMode()
 	// 기본 클래스 설정
 	DefaultPawnClass = ADuckCharacter::StaticClass();
 	PlayerControllerClass = ADuckPlayerController::StaticClass();
+
+	// 배경음악 플레이어 생성
+	BGMPlayer = CreateDefaultSubobject<UAudioComponent>(TEXT("BGMPlayer"));
+	BGMPlayer->bAutoActivate = false;
 
 	// 기본 시간 설정: 오후 3시(15:00)부터 시작하여 18:00에 1일차 시작 연출
 	CurrentHour = 15.0f;
@@ -36,6 +41,41 @@ void ADuckGameMode::BeginPlay()
 	}
 
 	SetPhase(EGamePhase::Night);
+
+	// 시작 시 인트로 BGM 재생
+	UpdateBGM(false);
+}
+
+void ADuckGameMode::PlayGlobalSound(EDuckSoundType SoundType, FVector Location)
+{
+	if (TObjectPtr<USoundBase>* SoundPtr = GlobalSoundMap.Find(SoundType))
+	{
+		if (*SoundPtr)
+		{
+			if (Location.IsNearlyZero())
+			{
+				UGameplayStatics::PlaySound2D(this, *SoundPtr);
+			}
+			else
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, *SoundPtr, Location);
+			}
+		}
+	}
+}
+
+void ADuckGameMode::UpdateBGM(bool bIsIngame)
+{
+	if (!BGMPlayer) return;
+
+	USoundBase* TargetSound = bIsIngame ? BGM_Ingame : BGM_Intro;
+	
+	if (TargetSound && BGMPlayer->Sound != TargetSound)
+	{
+		BGMPlayer->Stop();
+		BGMPlayer->SetSound(TargetSound);
+		BGMPlayer->Play();
+	}
 }
 
 void ADuckGameMode::Tick(float DeltaTime)
@@ -214,5 +254,34 @@ void ADuckGameMode::StartGame()
 		FenceActor->Destroy();
 	}
 
+	// 3. 배경음악 인게임으로 전환 및 시작 효과음 재생
+	UpdateBGM(true);
+	PlayGlobalSound(EDuckSoundType::StartGame);
+
 	UE_LOG(LogTemp, Log, TEXT("Game Started! Intro sequence finished."));
+}
+
+void ADuckGameMode::EndGame(bool bIsVictory)
+{
+	// 1. 게임 일시 정지
+	UGameplayStatics::SetGamePaused(GetWorld(), true);
+
+	// 2. 마우스 커서 활성화 및 입력 모드 변경
+	if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
+	{
+		PC->bShowMouseCursor = true;
+		FInputModeUIOnly InputMode;
+		PC->SetInputMode(InputMode);
+	}
+
+	// 3. 블루프린트 이벤트 호출 (UI 표시용)
+	OnGameEnded(bIsVictory);
+
+	// 4. 승리 시 효과음 재생 (패배는 사망 사운드가 있으므로 별도 처리 가능)
+	if (bIsVictory)
+	{
+		// 승리 사운드가 필요하다면 Enum에 추가하고 재생 가능
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Game Ended! Victory: %s"), bIsVictory ? TEXT("TRUE") : TEXT("FALSE"));
 }

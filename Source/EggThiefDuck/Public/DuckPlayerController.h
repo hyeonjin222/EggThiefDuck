@@ -26,6 +26,25 @@ public:
 	/** HUD 생성 및 초기화 (인트로 종료 시 호출) */
 	void InitializeHUD();
 
+	/** 사망 연출 시퀀스 시작 */
+	void StartDeathFadeSequence();
+
+	/** 월드 내 모든 적 제거 */
+	void ClearAllEnemies();
+
+	/** 월드 내 모든 적의 체력바 숨기기 */
+	void HideAllEnemyHealthBars();
+
+	/** 메인 HUD 가시성 제어 */
+	void SetHUDVisibility(bool bVisible);
+
+	/** 게임 종료 (어플리케이션 종료) */
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void QuitGame();
+
+	/** 레벨 재시작 (인트로 화면으로 복귀) */
+	void RestartLevel();
+
 	/** HUD 업데이트 함수들 */
 	void UpdateHUDHealth(float CurrentHP, float MaxHP);
 	void UpdateHUDXP(int32 Level, float CurrentXP, float MaxXP);

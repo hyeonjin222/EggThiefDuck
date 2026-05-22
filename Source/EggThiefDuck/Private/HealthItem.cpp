@@ -5,7 +5,7 @@
 
 AHealthItem::AHealthItem()
 {
-	HealPercent = 0.1f;
+	HealPercent = 0.25f;
 }
 
 void AHealthItem::OnPickedUp_Implementation(AActor* Deliverer)

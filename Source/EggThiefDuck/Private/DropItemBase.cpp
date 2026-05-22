@@ -5,6 +5,8 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "DuckCharacter.h"
+#include "DuckGameMode.h"
+#include "Kismet/GameplayStatics.h"
 
 ADropItemBase::ADropItemBase()
 {
@@ -108,6 +110,12 @@ void ADropItemBase::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* 
 {
 	if (OtherActor && OtherActor->IsA(ADuckCharacter::StaticClass()))
 	{
+		// 0. 아이템 획득 효과음 재생 (중앙 관리)
+		if (ADuckGameMode* GM = Cast<ADuckGameMode>(UGameplayStatics::GetGameMode(this)))
+		{
+			GM->PlayGlobalSound(EDuckSoundType::ItemPickup, GetActorLocation());
+		}
+
 		OnPickedUp(OtherActor);
 		Destroy();
 	}

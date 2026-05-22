@@ -134,10 +134,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual Effects")
 	TArray<TObjectPtr<UNiagaraSystem>> ProjectileTrailVFXs;
 
-	/** 업그레이드 획득 시 재생할 사운드 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual Effects")
-	TObjectPtr<USoundBase> UpgradeSound;
-
 	/** 특수 기술(지뢰, 회전 달걀 등)을 위한 액터 클래스 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Special Logic")
 	TSubclassOf<AActor> SpecialActorClass;

@@ -26,7 +26,12 @@ public:
 	/** 탄약 게이지 색상 변경 */
 	void SetAmmoBarColor(FLinearColor Color);
 
+	/** 페이드 아웃 시작 */
+	void StartFadeOut(float Duration);
+
 protected:
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
 	/** 체력바 UI 바인딩 */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UProgressBar> ProgressBar_Health;
@@ -34,4 +39,10 @@ protected:
 	/** 탄약바 UI 바인딩 */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UProgressBar> ProgressBar_Ammo;
+
+private:
+	/** 페이드 아웃 제어 변수 */
+	bool bIsFadingOut = false;
+	float FadeTimer = 0.0f;
+	float FadeDuration = 2.0f;
 };

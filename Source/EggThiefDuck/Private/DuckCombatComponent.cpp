@@ -3,6 +3,7 @@
 #include "DuckCombatComponent.h"
 #include "DuckCharacter.h"
 #include "DuckPlayerController.h"
+#include "DuckGameMode.h"
 #include "EggProjectile.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
@@ -165,6 +166,12 @@ void UDuckCombatComponent::FireProjectile()
 	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
 	if (OwnerCharacter && ProjectileClass)
 	{
+		// 0. 발사 효과음 재생 (중앙 관리)
+		if (ADuckGameMode* GM = Cast<ADuckGameMode>(UGameplayStatics::GetGameMode(this)))
+		{
+			GM->PlayGlobalSound(EDuckSoundType::ProjectileThrow, OwnerCharacter->GetActorLocation());
+		}
+
 		// 커서 애니메이션 실행
 		if (ADuckPlayerController* PC = Cast<ADuckPlayerController>(OwnerCharacter->GetController()))
 		{
