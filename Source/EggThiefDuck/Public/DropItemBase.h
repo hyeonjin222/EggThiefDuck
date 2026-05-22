@@ -62,7 +62,7 @@ protected:
 
 	/** 자동 소멸 시간 */
 	UPROPERTY(EditAnywhere, Category = "Item")
-	float LifeTime = 10.0f;
+	float LifeTime = 60.0f;
 
 	/** 중력 배율 (높을수록 빨리 떨어짐) */
 	UPROPERTY(EditAnywhere, Category = "Item|Physics")

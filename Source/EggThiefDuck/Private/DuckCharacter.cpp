@@ -18,6 +18,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
 #include "Framework/Application/SlateApplication.h"
+#include "UI/UpgradeScreenWidget.h"
 
 ADuckCharacter::ADuckCharacter()
 {
@@ -26,7 +27,7 @@ ADuckCharacter::ADuckCharacter()
 	// 1. 카메라 시스템 설정 (탑뷰)
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComp->SetupAttachment(RootComponent);
-	SpringArmComp->TargetArmLength = 1000.f;
+	SpringArmComp->TargetArmLength = 1200.f; // 인트로 대기 시 줌인 상태
 	SpringArmComp->SetRelativeRotation(FRotator(-60.f, 0.f, 0.f));
 	SpringArmComp->bDoCollisionTest = false; // 장애물에 의한 카메라 줌 방지
 	SpringArmComp->bInheritPitch = false;
@@ -84,6 +85,23 @@ void ADuckCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	if (bIsDead) return;
+
+	// 1. 카메라 줌 인트로 연출
+	if (bIsZoomingOut && SpringArmComp)
+	{
+		float NewLength = FMath::FInterpTo(SpringArmComp->TargetArmLength, TargetArmLength, DeltaTime, CurrentZoomSpeed);
+		SpringArmComp->TargetArmLength = NewLength;
+
+		// 목표치에 거의 도달하면 중단
+		if (FMath::IsNearlyEqual(NewLength, TargetArmLength, 1.0f))
+		{
+			SpringArmComp->TargetArmLength = TargetArmLength;
+			bIsZoomingOut = false;
+		}
+	}
+
+	// UI 게이지 실시간 갱신 (특히 탄약 회복 연출을 위해)
+	RefreshHUD();
 
 	bool bShouldLookAtMouse = (CombatComp && CombatComp->IsFiring()) || 
 	                          (GetWorld()->GetTimeSeconds() - LastFireTime < 1.0f);
@@ -327,7 +345,16 @@ void ADuckCharacter::RefreshHUD()
 	if (HealthBarWidget)
 	{
 		UHealthBarWidget* HPWidget = Cast<UHealthBarWidget>(HealthBarWidget->GetUserWidgetObject());
-		if (HPWidget) HPWidget->UpdateHealthPercent(GetHealthPercent());
+		if (HPWidget)
+		{
+			HPWidget->UpdateHealthPercent(GetHealthPercent());
+			
+			// 탄약 게이지 실시간 업데이트
+			if (CombatComp)
+			{
+				HPWidget->UpdateAmmoPercent(CombatComp->GetGaugePercent());
+			}
+		}
 	}
 }
 
@@ -358,26 +385,28 @@ void ADuckCharacter::LevelUp()
 		PC->SetInputMode(InputMode);
 	}
 
-	// 3. 업그레이드 후보군 랜덤 선택 (3개)
+	// 3. 업그레이드 후보군 생성 및 UI 표시
+	TArray<UUpgradeDataAsset*> Options = GenerateUpgradeOptions();
+	OnShowUpgradeScreen(Options);
+}
+
+TArray<UUpgradeDataAsset*> ADuckCharacter::GenerateUpgradeOptions()
+{
 	TArray<UUpgradeDataAsset*> Options;
 	TArray<UUpgradeDataAsset*> CandidatePool;
 
-	// 매 5레벨 마다 무기 강제 등장 여부 확인 (2, 3, 4레벨은 스탯, 5레벨은 무기)
+	// 매 5레벨 마다 무기 강제 등장 여부 확인 (5, 10, 15...)
 	bool bIsMilestoneLevel = (Level % 5 == 0);
-
-	UE_LOG(LogTemp, Warning, TEXT("--- Level Up Debug Start (Level: %d, Milestone: %s) ---"), Level, bIsMilestoneLevel ? TEXT("TRUE") : TEXT("FALSE"));
 
 	for (UUpgradeDataAsset* Asset : UpgradePool)
 	{
 		if (!Asset) continue;
 
-		// ID가 비어있으면 에셋 이름으로 자동 할당 (중요: 중복 방지)
 		FName FinalID = Asset->UpgradeID.IsNone() ? Asset->GetFName() : Asset->UpgradeID;
 		bool bOwned = AppliedUpgradeLevels.Contains(FinalID);
 
 		if (bIsMilestoneLevel)
 		{
-			// 마일스톤 레벨: 아직 '보유하지 않은' 새로운 무기만 후보군에 추가
 			if (Asset->bIsWeapon && !bOwned)
 			{
 				CandidatePool.Add(Asset);
@@ -385,17 +414,12 @@ void ADuckCharacter::LevelUp()
 		}
 		else
 		{
-			// 일반 레벨: 
-			// 1. 무기가 아닌 스탯 카드(bIsWeapon=false)
-			// 2. 이미 보유하고 있는 무기의 강화 카드(bOwned=true)
 			if (!Asset->bIsWeapon || bOwned)
 			{
-				// 최대 레벨 도달 확인
 				const int32* CurrentLvlPtr = AppliedUpgradeLevels.Find(FinalID);
 				int32 CurrentLvl = CurrentLvlPtr ? *CurrentLvlPtr : 0;
 				if (CurrentLvl >= Asset->MaxLevel) continue;
 
-				// 선행 요구 사항 확인
 				if (!Asset->RequiredUpgradeID.IsNone())
 				{
 					const int32* ReqLvlPtr = AppliedUpgradeLevels.Find(Asset->RequiredUpgradeID);
@@ -408,10 +432,9 @@ void ADuckCharacter::LevelUp()
 		}
 	}
 
-	// [Fallback] 마일스톤 레벨인데 뽑을 새로운 무기가 하나도 없다면, 일반 업그레이드라도 보여줌
+	// [Fallback] 마일스톤 레벨인데 뽑을 새로운 무기가 하나도 없다면, 일반 업그레이드 추가
 	if (bIsMilestoneLevel && CandidatePool.Num() == 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("No new weapons available for Milestone! Falling back to normal upgrades."));
 		for (UUpgradeDataAsset* Asset : UpgradePool)
 		{
 			if (!Asset || Asset->bIsWeapon) continue;
@@ -425,32 +448,46 @@ void ADuckCharacter::LevelUp()
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("Candidate Pool Size: %d"), CandidatePool.Num());
-
 	// 가중치 기반 랜덤 선택 (3개 추출)
-	while (Options.Num() < 3 && CandidatePool.Num() > 0)
+	TArray<UUpgradeDataAsset*> TempPool = CandidatePool;
+	while (Options.Num() < 3 && TempPool.Num() > 0)
 	{
 		float TotalWeight = 0.0f;
-		for (UUpgradeDataAsset* Asset : CandidatePool) TotalWeight += Asset->Weight;
+		for (UUpgradeDataAsset* Asset : TempPool) TotalWeight += Asset->Weight;
 
 		float RandomValue = FMath::FRandRange(0.0f, TotalWeight);
 		float WeightSum = 0.0f;
 
-		for (int32 i = 0; i < CandidatePool.Num(); ++i)
+		for (int32 i = 0; i < TempPool.Num(); ++i)
 		{
-			WeightSum += CandidatePool[i]->Weight;
+			WeightSum += TempPool[i]->Weight;
 			if (RandomValue <= WeightSum)
 			{
-				Options.Add(CandidatePool[i]);
-				CandidatePool.RemoveAt(i);
+				Options.Add(TempPool[i]);
+				TempPool.RemoveAt(i);
 				break;
 			}
 		}
 	}
 
-	// 4. UI 이벤트 호출
-	OnShowUpgradeScreen(Options);
-	UE_LOG(LogTemp, Warning, TEXT("--- Level Up Debug End ---"));
+	return Options;
+}
+
+void ADuckCharacter::RerollUpgrades(UUpgradeScreenWidget* CurrentWidget)
+{
+	if (!CurrentWidget || Gold < 20) return;
+
+	// 1. 골드 차감
+	Gold -= 20;
+	RefreshHUD();
+
+	// 2. 새로운 선택지 생성
+	TArray<UUpgradeDataAsset*> NewOptions = GenerateUpgradeOptions();
+
+	// 3. 위젯 갱신
+	CurrentWidget->InitUpgradeScreen(NewOptions);
+
+	UE_LOG(LogTemp, Warning, TEXT("Reroll Successful! 20 Gold deducted. Remaining: %d"), Gold);
 }
 
 void ADuckCharacter::SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade)
@@ -595,6 +632,24 @@ void ADuckCharacter::AddGold(int32 Amount)
 {
 	Gold += Amount;
 	RefreshHUD();
+}
+
+void ADuckCharacter::Heal(float Percent)
+{
+	if (bIsDead) return;
+
+	float HealAmount = MaxHealth * Percent;
+	CurrentHealth = FMath::Clamp(CurrentHealth + HealAmount, 0.0f, MaxHealth);
+	
+	RefreshHUD();
+	
+	UE_LOG(LogTemp, Log, TEXT("Healed: %.1f (Percent: %.1f%%), Current HP: %.1f"), HealAmount, Percent * 100.0f, CurrentHealth);
+}
+
+void ADuckCharacter::StartCameraIntro()
+{
+	bIsZoomingOut = true;
+	UE_LOG(LogTemp, Log, TEXT("Camera Zoom Out Intro Started!"));
 }
 
 void ADuckCharacter::UpdateMoveSpeed()

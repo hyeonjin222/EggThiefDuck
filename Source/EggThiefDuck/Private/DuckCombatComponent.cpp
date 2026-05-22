@@ -7,10 +7,18 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
 #include "Data/UpgradeDataAsset.h"
+#include "UI/HealthBarWidget.h"
+#include "Components/WidgetComponent.h"
 
 UDuckCombatComponent::UDuckCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+
+	// 기본 밸런스 설정
+	BaseMaxEggGauge = 100.0f;
+	GaugeCostPerShot = 20.0f;      // 발당 20 소모 (총 5발)
+	BaseGaugeRecoveryRate = 20.0f; // 초당 20 회복 (5초 완충)
+	OverheatPenaltyTime = 0.0f;    // 타이머 대신 게이지 완충 체크 사용
 
 	MaxEggGauge = BaseMaxEggGauge;
 	GaugeRecoveryRate = BaseGaugeRecoveryRate;
@@ -63,15 +71,23 @@ void UDuckCombatComponent::StopFire()
 
 void UDuckCombatComponent::Fire()
 {
-	if (CurrentEggGauge < GaugeCostPerShot)
+	// 탄약이 아예 없으면 즉시 과열 잠금 (0.1 이하는 아예 없는 것으로 간주)
+	if (CurrentEggGauge <= 0.1f)
 	{
-		// 탄약 부족 시 과열 처리
 		bIsOverheated = true;
 		bIsFiring = false;
 		bWantsToFire = false;
-		GetWorld()->GetTimerManager().SetTimer(OverheatTimerHandle, this, &UDuckCombatComponent::EndOverheat, OverheatPenaltyTime, false);
 		
-		UE_LOG(LogTemp, Warning, TEXT("Egg Gauge Empty! Overheated!"));
+		ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
+		if (OwnerCharacter)
+		{
+			if (UHealthBarWidget* HPWidget = Cast<UHealthBarWidget>(OwnerCharacter->GetHealthBarWidget()->GetUserWidgetObject()))
+			{
+				HPWidget->SetAmmoBarColor(FLinearColor::Red);
+			}
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("Egg Gauge Empty! Overheated - Wait for Full Recharge!"));
 		return;
 	}
 
@@ -209,7 +225,24 @@ void UDuckCombatComponent::FireProjectile()
 			}
 		}
 
-		CurrentEggGauge -= GaugeCostPerShot;
+		// 탄약 차감 (남은 양이 발당 소모량보다 적더라도 마지막 사격을 위해 0으로 고정)
+		CurrentEggGauge = FMath::Max(0.0f, CurrentEggGauge - GaugeCostPerShot);
+		
+		// 사격 후 탄약이 바닥났다면 즉시 과열 상태 돌입
+		if (CurrentEggGauge <= 0.0f)
+		{
+			bIsOverheated = true;
+			bIsFiring = false;
+			bWantsToFire = false;
+
+			if (UHealthBarWidget* HPWidget = Cast<UHealthBarWidget>(OwnerCharacter->GetHealthBarWidget()->GetUserWidgetObject()))
+			{
+				HPWidget->SetAmmoBarColor(FLinearColor::Red);
+			}
+			
+			UE_LOG(LogTemp, Warning, TEXT("Last Shot Fired! Overheated - Wait for Full Recharge!"));
+		}
+
 		bWantsToFire = false;
 	}
 }
@@ -355,10 +388,16 @@ void UDuckCombatComponent::ApplyUpgrade(UUpgradeDataAsset* Upgrade, bool bIsFirs
 
 void UDuckCombatComponent::UpdateEggGauge(float DeltaTime)
 {
-	// 사격 중이 아닐 때만 게이지 회복
-	if (!bIsFiring && CurrentEggGauge < MaxEggGauge)
+	// [변경] 사격 중 여부와 상관없이 항상 게이지 회복
+	if (CurrentEggGauge < MaxEggGauge)
 	{
 		CurrentEggGauge = FMath::Min(MaxEggGauge, CurrentEggGauge + (GaugeRecoveryRate * DeltaTime));
+		
+		// [추가] 과열 상태일 때 완충(100%)되면 상태 해제 및 UI 색상 복구
+		if (bIsOverheated && CurrentEggGauge >= MaxEggGauge)
+		{
+			EndOverheat();
+		}
 	}
 }
 
@@ -385,6 +424,16 @@ void UDuckCombatComponent::AddProjectileTrailVFX(UNiagaraSystem* VFX)
 void UDuckCombatComponent::EndOverheat()
 {
 	bIsOverheated = false;
-	CurrentEggGauge = MaxEggGauge; // 과열 회복 시 게이지 풀 충전 (기획에 따라 조절 가능)
-	UE_LOG(LogTemp, Log, TEXT("Overheat Ended. Ready to Fire!"));
+	
+	// UI 색상을 원래 파란색(0012FFFF)으로 복구
+	ADuckCharacter* OwnerCharacter = Cast<ADuckCharacter>(GetOwner());
+	if (OwnerCharacter)
+	{
+		if (UHealthBarWidget* HPWidget = Cast<UHealthBarWidget>(OwnerCharacter->GetHealthBarWidget()->GetUserWidgetObject()))
+		{
+			HPWidget->SetAmmoBarColor(FLinearColor(0.0f, 0.0705f, 1.0f, 1.0f));
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Ammo Full! Overheat Ended."));
 }

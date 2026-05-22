@@ -22,5 +22,5 @@ protected:
 
 	/** 획득 시 증가할 경험치 양 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|XP")
-	float ExpAmount = 10.0f;
+	float ExpAmount = 20.0f;
 };

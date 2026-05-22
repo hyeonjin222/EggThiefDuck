@@ -44,27 +44,28 @@ void AEnemySpawner::UpdateCurrentWaveSetting()
 	if (!GM) return;
 
 	float Hour = GM->CurrentHour;
+	int32 Day = GM->CurrentDay;
 	
-	// 시간을 19시 기준으로 정규화하여 선형적으로 비교 (19시=0, 06시=11)
-	auto GetRelativeHour = [](float H) -> float {
-		if (H >= 19.0f) return H - 19.0f;
-		return H + 5.0f;
+	// 날짜와 시간을 합친 절대적인 선형 시간 계산 (단위: 시간)
+	// 예: 1일차 18.1시 = 1*24 + 18.1 = 42.1
+	auto GetAbsoluteTotalHour = [](int32 D, float H) -> float {
+		return ((float)D * 24.0f) + H;
 	};
 
-	float RelativeCurrentHour = GetRelativeHour(Hour);
+	float TotalCurrentHour = GetAbsoluteTotalHour(Day, Hour);
 	FWaveSetting* BestSetting = nullptr;
-	float BestRelativeStart = -1.0f;
+	float BestAbsoluteStart = -1.0f;
 
 	for (int32 i = 0; i < WaveSchedule.Num(); ++i)
 	{
-		float RelativeStart = GetRelativeHour(WaveSchedule[i].StartHour);
+		float AbsoluteStart = GetAbsoluteTotalHour(WaveSchedule[i].StartDay, WaveSchedule[i].StartHour);
 		
 		// 현재 시간보다 이전(또는 같은) 시간에 시작하는 세팅 중 가장 늦은 것 선택
-		if (RelativeStart <= RelativeCurrentHour)
+		if (AbsoluteStart <= TotalCurrentHour)
 		{
-			if (RelativeStart > BestRelativeStart)
+			if (AbsoluteStart > BestAbsoluteStart)
 			{
-				BestRelativeStart = RelativeStart;
+				BestAbsoluteStart = AbsoluteStart;
 				BestSetting = &WaveSchedule[i];
 			}
 		}

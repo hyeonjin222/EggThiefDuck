@@ -39,6 +39,9 @@ public:
 	/** 발사체에 적용될 나이아가라 이펙트 목록 추가 */
 	void AddProjectileTrailVFX(class UNiagaraSystem* VFX);
 
+	/** 현재 게이지 비율 반환 (0.0 ~ 1.0) */
+	float GetGaugePercent() const { return MaxEggGauge > 0.f ? CurrentEggGauge / MaxEggGauge : 0.f; }
+
 private:
 	/** 발사 시도 (애니메이션 및 타이머 시작) */
 	void Fire();

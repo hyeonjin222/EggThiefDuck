@@ -6,7 +6,7 @@
 AGoldItem::AGoldItem()
 {
 	// 기본값 설정
-	GoldAmount = 10;
+	GoldAmount = 1;
 }
 
 void AGoldItem::OnPickedUp_Implementation(AActor* Deliverer)

@@ -9,17 +9,7 @@ void ADuckPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 메인 HUD 생성
-	if (MainHUDClass)
-	{
-		MainHUDWidget = CreateWidget<UMainHUDWidget>(this, MainHUDClass);
-		if (MainHUDWidget)
-		{
-			MainHUDWidget->AddToViewport(100); // 블러보다 위에 그리기 위해 높은 우선순위 부여
-		}
-	}
-
-	// 커스텀 커서 생성
+	// 커스텀 커서 생성 (인트로 중에도 필요)
 	if (CursorWidgetClass)
 	{
 		CursorWidget = CreateWidget<UDuckCursorWidget>(this, CursorWidgetClass);
@@ -27,6 +17,22 @@ void ADuckPlayerController::BeginPlay()
 		{
 			CursorWidget->AddToViewport(999); // 최상단에 배치
 			bShowMouseCursor = false; // 윈도우 기본 커서는 숨김
+		}
+	}
+}
+
+void ADuckPlayerController::InitializeHUD()
+{
+	// 이미 생성되어 있다면 무시
+	if (MainHUDWidget) return;
+
+	// 메인 HUD 생성
+	if (MainHUDClass)
+	{
+		MainHUDWidget = CreateWidget<UMainHUDWidget>(this, MainHUDClass);
+		if (MainHUDWidget)
+		{
+			MainHUDWidget->AddToViewport(100);
 		}
 	}
 }
@@ -86,5 +92,13 @@ void ADuckPlayerController::UpdateHUDTime(int32 Day, float Hour)
 	if (MainHUDWidget)
 	{
 		MainHUDWidget->UpdateTime(Day, Hour);
+	}
+}
+
+void ADuckPlayerController::ShowHUDDayNotification(int32 Day)
+{
+	if (MainHUDWidget)
+	{
+		MainHUDWidget->ShowDayNotification(Day);
 	}
 }

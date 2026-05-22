@@ -47,6 +47,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Upgrades")
 	void SelectUpgrade(UUpgradeDataAsset* SelectedUpgrade);
 
+	/** 리롤 기능 (UI에서 호출) */
+	UFUNCTION(BlueprintCallable, Category = "Upgrades")
+	void RerollUpgrades(class UUpgradeScreenWidget* CurrentWidget);
+
 	/** 실제 업그레이드 적용 로직 (외부 컴포넌트에서도 호출 가능하도록 public) */
 	void ApplyUpgrade(UUpgradeDataAsset* Upgrade);
 
@@ -60,6 +64,14 @@ protected:
 	void OnShowUpgradeScreen(const TArray<UUpgradeDataAsset*>& Options);
 
 private:
+	/** 현재 레벨과 상황에 맞는 업그레이드 후보군 생성 */
+	TArray<UUpgradeDataAsset*> GenerateUpgradeOptions();
+
+	/** 카메라 줌 연출용 변수 */
+	bool bIsZoomingOut = false;
+	float TargetArmLength = 1800.0f;
+	float CurrentZoomSpeed = 3.0f;
+
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> SpringArmComp;
@@ -222,6 +234,9 @@ protected:
 	TObjectPtr<UAnimMontage> DeathMontage;
 
 public:
+	/** 카메라 인트로 연출 시작 */
+	void StartCameraIntro();
+
 	/** 경험치 추가 함수 */
 	UFUNCTION(BlueprintCallable, Category = "Stats")
 	void AddExp(float Amount);
@@ -237,6 +252,10 @@ public:
 	/** 골드 추가 함수 */
 	UFUNCTION(BlueprintCallable, Category = "Stats")
 	void AddGold(int32 Amount);
+
+	/** 체력 회복 함수 (비율 기반: 0.1 = 10%) */
+	UFUNCTION(BlueprintCallable, Category = "Stats")
+	void Heal(float Percent);
 
 	/** 현재 골드 반환 */
 	UFUNCTION(BlueprintCallable, Category = "Stats")
@@ -274,4 +293,7 @@ public:
 
 	/** 전투 컴포넌트 Getter */
 	UDuckCombatComponent* GetCombatComponent() const { return CombatComp; }
+
+	/** 체력바 UI 컴포넌트 Getter */
+	UWidgetComponent* GetHealthBarWidget() const { return HealthBarWidget; }
 };

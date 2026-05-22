@@ -6,7 +6,7 @@
 AExpItem::AExpItem()
 {
 	// 기본값 설정
-	ExpAmount = 10.0f;
+	ExpAmount = 20.0f;
 }
 
 void AExpItem::OnPickedUp_Implementation(AActor* Deliverer)

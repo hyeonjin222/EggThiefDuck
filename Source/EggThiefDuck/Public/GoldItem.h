@@ -22,5 +22,5 @@ protected:
 
 	/** 획득 시 증가할 골드 양 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Gold")
-	int32 GoldAmount = 10;
+	int32 GoldAmount = 1;
 };

@@ -74,12 +74,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Enemy|AI")
 	void SetState(EEnemyState NewState);
 
+	/** 자연스럽게 작아지며 소멸 시작 */
+	void StartDespawning();
+
 protected:
 	/** 현재 상태 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
 	EEnemyState CurrentState = EEnemyState::Chasing;
 
 	bool bIsFleeingPaused = false;
+	bool bIsDespawning = false;
+	float DespawnTimer = 0.0f;
+	const float DespawnDuration = 0.5f;
+
 	FTimerHandle FleeDelayTimerHandle;
 
 	void ResumeFleeing();

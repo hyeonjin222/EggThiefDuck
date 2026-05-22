@@ -64,6 +64,13 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Upgrade_2;
 
+	// 리롤 버튼 및 비용 텍스트
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_Reroll;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> Text_RerollCost;
+
 private:
 	/** 버튼 클릭 시 호출될 내부 함수 */
 	UFUNCTION()
@@ -72,6 +79,9 @@ private:
 	void OnUpgradeSelected_1();
 	UFUNCTION()
 	void OnUpgradeSelected_2();
+
+	UFUNCTION()
+	void OnRerollClicked();
 
 	/** 선택된 업그레이드를 처리하는 공통 로직 */
 	void HandleUpgradeSelection(int32 Index);

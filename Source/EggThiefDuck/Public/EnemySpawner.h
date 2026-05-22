@@ -12,6 +12,10 @@ struct FWaveSetting
 {
 	GENERATED_BODY()
 
+	/** 해당 세팅이 시작되는 날짜 (1일부터 시작) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 StartDay = 1;
+
 	/** 해당 세팅이 시작되는 시간 (0.0 ~ 24.0) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float StartHour = 19.0f;

@@ -6,8 +6,10 @@
 #include "Blueprint/UserWidget.h"
 #include "HealthBarWidget.generated.h"
 
+class UProgressBar;
+
 /**
- * 캐릭터나 몹 머리 위에 뜨는 작은 체력바 위젯의 베이스 클래스
+ * 캐릭터나 몹 머리 위에 뜨는 작은 체력/탄약바 위젯의 베이스 클래스
  */
 UCLASS()
 class EGGTHIEFDUCK_API UHealthBarWidget : public UUserWidget
@@ -16,6 +18,20 @@ class EGGTHIEFDUCK_API UHealthBarWidget : public UUserWidget
 
 public:
 	/** 체력 비율 업데이트 (0.0 ~ 1.0) */
-	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
 	void UpdateHealthPercent(float Percent);
+
+	/** 탄약 게이지 비율 업데이트 (0.0 ~ 1.0) */
+	void UpdateAmmoPercent(float Percent);
+
+	/** 탄약 게이지 색상 변경 */
+	void SetAmmoBarColor(FLinearColor Color);
+
+protected:
+	/** 체력바 UI 바인딩 */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UProgressBar> ProgressBar_Health;
+
+	/** 탄약바 UI 바인딩 */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UProgressBar> ProgressBar_Ammo;
 };

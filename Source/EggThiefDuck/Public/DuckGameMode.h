@@ -35,7 +35,11 @@ public:
 
 	/** 게임 시간 흐름 속도 (현실 1초당 몇 분이 흐를지) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game|Time")
-	float TimeScale = 0.1f;
+	float TimeScale = 1.0f;
+
+	/** 낮 시간(스킵 구간) 가속 배율 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game|Time")
+	float DayTimeSpeedMultiplier = 50.0f;
 
 	/** 현재 게임 일차 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Game|Time")
@@ -44,6 +48,14 @@ public:
 	/** 현재 게임 페이즈 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Game|Time")
 	EGamePhase CurrentPhase = EGamePhase::Night;
+
+	/** 게임 시작 여부 (인트로 완료 여부) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Game")
+	bool bIsGameStarted = false;
+
+	/** 게임을 시작하고 인트로 연출을 종료합니다. */
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void StartGame();
 
 protected:
 	/** 태양/달 역할을 할 조명 (에디터에서 지정하거나 자동 탐색) */
@@ -60,10 +72,13 @@ private:
 	void CheckPhaseTransition();
 	void SetPhase(EGamePhase NewPhase);
 
-	/** 전투 시작 시간 (7 PM) */
-	const float NightStartTime = 19.0f;
+	/** 전투 시작 시간 (6 PM) */
+	const float NightStartTime = 18.0f;
 	/** 아침(퇴각) 시작 시간 (6 AM) */
 	const float MorningStartTime = 6.0f;
-	/** 정비(낮) 시작 시간 (8 AM) */
-	const float DayStartTime = 8.0f;
+	/** 정비(낮) 시작 시간 (7 AM) */
+	const float DayStartTime = 7.0f;
+
+	/** 마지막으로 날짜 알림을 보낸 일차 */
+	int32 LastNotifiedDay = 0;
 };

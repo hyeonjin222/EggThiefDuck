@@ -106,6 +106,28 @@ void AEnemyBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// 0. 소멸 연출 중일 때 (작아지며 사라짐)
+	if (bIsDespawning)
+	{
+		DespawnTimer += DeltaTime;
+		float Progress = FMath::Clamp(DespawnTimer / DespawnDuration, 0.0f, 1.0f);
+		
+		// 가속도 적용: 뒤로 갈수록 훨씬 빠르게 줄어듦 (제곱 함수 사용)
+		float AcceleratedProgress = Progress * Progress * Progress;
+		
+		FVector NewScale = FMath::Lerp(BaseMeshScale, FVector::ZeroVector, AcceleratedProgress);
+		if (ActiveMeshPtr)
+		{
+			ActiveMeshPtr->SetRelativeScale3D(NewScale);
+		}
+
+		if (Progress >= 1.0f)
+		{
+			Destroy();
+		}
+		return; // 소멸 중에는 아래의 이동/공격 로직 스킵
+	}
+
 	// 지속 데미지 판정
 	if (CurrentState == EEnemyState::Chasing && AttackBox)
 	{
@@ -233,6 +255,31 @@ void AEnemyBase::SetState(EEnemyState NewState)
 		if (HealthBarWidget) HealthBarWidget->SetVisibility(false);
 		bIsFleeingPaused = true;
 		GetWorldTimerManager().SetTimer(FleeDelayTimerHandle, this, &AEnemyBase::ResumeFleeing, 4.0f, false);
+	}
+}
+
+void AEnemyBase::StartDespawning()
+{
+	if (bIsDespawning) return;
+
+	bIsDespawning = true;
+	DespawnTimer = 0.0f;
+
+	// 물리 및 충돌 비활성화
+	if (BoxComp)
+	{
+		BoxComp->SetSimulatePhysics(false);
+		BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	if (AttackBox)
+	{
+		AttackBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	if (HealthBarWidget)
+	{
+		HealthBarWidget->SetVisibility(false);
 	}
 }
 

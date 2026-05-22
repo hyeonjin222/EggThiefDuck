@@ -23,11 +23,15 @@ protected:
 public:
 	virtual void PlayerTick(float DeltaTime) override;
 
+	/** HUD 생성 및 초기화 (인트로 종료 시 호출) */
+	void InitializeHUD();
+
 	/** HUD 업데이트 함수들 */
 	void UpdateHUDHealth(float CurrentHP, float MaxHP);
 	void UpdateHUDXP(int32 Level, float CurrentXP, float MaxXP);
 	void UpdateHUDGold(int32 Amount);
 	void UpdateHUDTime(int32 Day, float Hour);
+	void ShowHUDDayNotification(int32 Day);
 
 	/** 커서 애니메이션 재생 */
 	void PlayCursorFireAnimation();
