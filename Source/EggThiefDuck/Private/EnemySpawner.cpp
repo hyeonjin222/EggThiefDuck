@@ -5,6 +5,7 @@
 #include "EnemyBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "NavigationSystem.h"
 
 AEnemySpawner::AEnemySpawner()
 {
@@ -92,6 +93,10 @@ void AEnemySpawner::SpawnEnemies()
 		if (!EnemyClass) continue;
 
 		FVector SpawnLoc = GetRandomSpawnLocation();
+		
+		// 유효하지 않은 위치(FVector::ZeroVector 등)가 반환되면 스폰 건너뜀
+		if (SpawnLoc.IsNearlyZero()) continue;
+
 		FRotator SpawnRot = FRotator::ZeroRotator;
 
 		FActorSpawnParameters SpawnParams;
@@ -112,33 +117,50 @@ FVector AEnemySpawner::GetRandomSpawnLocation()
 {
 	if (!PlayerActor) return GetActorLocation();
 
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!NavSys) return FVector::ZeroVector;
+
 	FVector PlayerLoc = PlayerActor->GetActorLocation();
 	FVector Velocity = PlayerActor->GetVelocity();
 	
-	float FinalAngle = FMath::FRandRange(0.0f, 360.0f);
-
-	// 플레이어가 이동 중일 때 (속도가 일정 이상일 때)
-	if (Velocity.SizeSquared() > FMath::Square(100.0f))
+	const int32 MaxAttempts = 10; // 유효한 위치를 찾기 위한 최대 시도 횟수
+	
+	for (int32 Attempt = 0; Attempt < MaxAttempts; ++Attempt)
 	{
-		// 70% 확률로 플레이어 진행 방향 앞쪽 120도 내에 생성
-		if (FMath::FRand() < 0.7f)
+		float FinalAngle = FMath::FRandRange(0.0f, 360.0f);
+
+		// 플레이어가 이동 중일 때 (속도가 일정 이상일 때)
+		if (Velocity.SizeSquared() > FMath::Square(100.0f))
 		{
-			float MoveAngle = Velocity.Rotation().Yaw;
-			FinalAngle = MoveAngle + FMath::RandRange(-60.0f, 60.0f);
+			// 첫 5번의 시도 동안은 70% 확률로 플레이어 진행 방향 앞쪽 120도 내에 생성 시도
+			if (Attempt < 5 && FMath::FRand() < 0.7f)
+			{
+				float MoveAngle = Velocity.Rotation().Yaw;
+				FinalAngle = MoveAngle + FMath::RandRange(-60.0f, 60.0f);
+			}
+		}
+
+		// 도넛 반경 내 랜덤 위치 계산
+		float RandomDistance = FMath::FRandRange(MinSpawnRadius, MaxSpawnRadius);
+
+		// Yaw만 적용하여 평면상의 오프셋 생성
+		FVector Offset = UKismetMathLibrary::CreateVectorFromYawPitch(FinalAngle, 0.0f, RandomDistance);
+		FVector CandidateLoc = PlayerLoc + Offset;
+		
+		// 바닥 높이 보정
+		CandidateLoc.Z = PlayerLoc.Z;
+
+		// --- 내비게이션 메쉬(NavMesh) 유효성 검사 ---
+		FNavLocation ProjectedLoc;
+		// 후보지가 실제 몹이 다닐 수 있는 길(NavMesh) 위인지 확인
+		if (NavSys->ProjectPointToNavigation(CandidateLoc, ProjectedLoc, FVector(500.f, 500.f, 500.f)))
+		{
+			return ProjectedLoc.Location;
 		}
 	}
 
-	// 도넛 반경 내 랜덤 위치 계산
-	float RandomDistance = FMath::FRandRange(MinSpawnRadius, MaxSpawnRadius);
-
-	// Yaw만 적용하여 평면상의 오프셋 생성
-	FVector Offset = UKismetMathLibrary::CreateVectorFromYawPitch(FinalAngle, 0.0f, RandomDistance);
-	FVector SpawnLoc = PlayerLoc + Offset;
-	
-	// 바닥 높이 보정
-	SpawnLoc.Z = PlayerLoc.Z;
-
-	return SpawnLoc;
+	// 모든 시도가 실패하면 유효하지 않은 위치 반환
+	return FVector::ZeroVector;
 }
 
 TSubclassOf<AEnemyBase> AEnemySpawner::GetRandomEnemyClass()
