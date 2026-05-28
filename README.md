@@ -6,7 +6,7 @@
 
 ## 📝 한 줄 요약
 **장르**: 탑뷰 트윈스틱 슈팅 + 웨이브 생존  
-**제작 기간**: 3주 (진행 중)  
+**제작 기간**: 2주
 **사용 기술**: Unreal Engine 5.6.1 / C++ 20  
 **개발 인원**: 1인 개발
 
@@ -35,7 +35,7 @@
 ## 💻 기술 스택 (Tech Stack)
 - **Engine**: Unreal Engine 5.6.1
 - **Language**: C++ 20
-- **IDE**: Visual Studio 2022 / JetBrains Rider
+- **IDE**: JetBrains Rider
 - **VFX**: Niagara System
 - **Input**: Enhanced Input System
 
